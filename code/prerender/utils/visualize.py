@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from matplotlib import pyplot as plt
-from utils.features_description import generate_features_description
+from features_description import generate_features_description
 
 def parse_one_scene(filename):
     dataset = tf.data.TFRecordDataset(filename, compression_type='')

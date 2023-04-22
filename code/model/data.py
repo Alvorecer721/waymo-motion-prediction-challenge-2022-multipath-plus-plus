@@ -9,6 +9,15 @@ def angle_to_range(yaw):
     return yaw
 
 def normalize(data, config):
+    """
+    The function starts by checking which features are specified in the configuration.
+    There are three possible feature configurations:
+    - ("xy", "yaw", "speed", "valid")
+    - ("xy", "yaw", "speed", "width", "length", "valid")
+    - ("xy", "yaw_sin", "yaw_cos", "speed", "valid")
+    Based on the selected features, the function sets the normalization means and standard deviations. These are hardcoded dictionaries containing the mean and standard deviation values for each feature.
+    """
+
     features = tuple(config["train"]["data_config"]["dataset_config"]["lstm_input_data"])
     if features == ("xy", "yaw", "speed", "valid"):
         normalizarion_means = {
@@ -73,7 +82,7 @@ def normalize(data, config):
         'target/history/mcg_input_data', 'other/history/mcg_input_data',
         'road_network_embeddings']
     for k in keys:
-        data[k] = (data[k] - normalizarion_means[k]) / (normalizarion_stds[k] + 1e-6)
+        data[k] = (data[k] - normalizarion_means[k]) / (normalizarion_stds[k] + 1e-6) # avoid divide by zero
         data[k].clamp_(-15, 15)
     data[f"target/history/lstm_data_diff"] *= data[f"target/history/valid_diff"]
     data[f"other/history/lstm_data_diff"] *= data[f"other/history/valid_diff"]

@@ -36,7 +36,7 @@ def get_git_revision_short_hash():
     return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
 
 
-config = get_config(sys.argv[1])
+config = get_config(sys.argv[1]) # configs/final_RoP_Cov_Single.yaml
 alias = sys.argv[1].split("/")[-1].split(".")[0]
 try:
     models_path = os.path.join("../models", f"{alias}__{get_git_revision_short_hash()}")

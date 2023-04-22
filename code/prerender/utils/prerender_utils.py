@@ -5,16 +5,19 @@ from .vectorizer import MultiPathPPRenderer
 from .utils import get_config, data_to_numpy
 import argparse
 
+
 def get_visualizer(renderer_name, renderer_config):
     if renderer_name == "MultiPathPPRenderer":
         return MultiPathPPRenderer(renderer_config)
     raise Exception(f"Unknown visualizer {renderer_name}")
+
 
 def get_visualizers(visualizers_config):
     visualizers = []
     for renderer in visualizers_config:
         visualizers.append(get_visualizer(renderer["renderer_name"], renderer["renderer_config"]))
     return visualizers
+
 
 def create_dataset(datapath, n_shards, shard_id):
     files = os.listdir(datapath)
@@ -24,6 +27,7 @@ def create_dataset(datapath, n_shards, shard_id):
     if n_shards > 1:
         dataset = dataset.shard(n_shards, shard_id)
     return dataset
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -38,11 +42,13 @@ def parse_arguments():
     args = parser.parse_args()
     return args
 
+
 def generate_filename(scene_data):
     scenario_id = scene_data["scenario_id"]
     agent_id = scene_data["agent_id"]
     agent_type = scene_data["target/agent_type"]
     return f"scid_{scenario_id}__aid_{agent_id}__atype_{agent_type.item()}.npz"
+
 
 def merge_and_save(visualizers, data, output_path):
     data_to_numpy(data)
