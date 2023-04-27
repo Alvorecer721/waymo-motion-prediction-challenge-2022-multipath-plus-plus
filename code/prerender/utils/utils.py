@@ -65,3 +65,8 @@ def get_normalize_data():
         "road_network_segments": {
             "mean": np.array([[[11.440233, 3.4300654]]]),
             "std": np.array([[[66.125916, 53.79835]]])}}
+
+
+if __name__ == "__main__":
+    config = get_config('/Users/xuyixuan/Downloads/Project/waymo-motion-prediction-challenge-2022-multipath-plus-plus/code/configs/prerender.yaml')
+    print(config)

@@ -19,6 +19,10 @@ _roadgraph_features = {
     ),
 }
 
+# State type:
+# 1: vehicle
+# 2: pedestrian
+# 3: cyclists
 _general_state_features = {
     "state/id": tf.io.FixedLenFeature([128], tf.float32, default_value=None),
     "state/type": tf.io.FixedLenFeature([128], tf.float32, default_value=None),

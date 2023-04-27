@@ -33,5 +33,36 @@ def main():
         r.get()
 
 
+def prerender_single_scenario():
+    visualizers_config = get_config("/Users/xuyixuan/Downloads/Project/waymo-motion-prediction-challenge-2022-multipath-plus-plus/code/configs/prerender.yaml")
+    visualizers = get_visualizers(visualizers_config)
+
+    dataset = tf.data.TFRecordDataset(
+        ["/Users/xuyixuan/Downloads/Project/waymo-motion-prediction-challenge-2022-multipath-plus-plus/dataset/tfrecord-00004-of-01000"],
+        num_parallel_reads=1
+    )
+
+    p = multiprocessing.Pool(24)
+    processes = []
+    k = 0
+    for data in tqdm(dataset.as_numpy_iterator()):
+        k += 1
+
+        data = tf.io.parse_single_example(data, generate_features_description())
+        processes.append(
+            p.apply_async(
+                merge_and_save,
+                kwds=dict(
+                    visualizers=visualizers,
+                    data=data,
+                    output_path="/Users/xuyixuan/Downloads/Project/waymo-motion-prediction-challenge-2022-multipath-plus-plus/dataset/rendered",
+                ),
+            )
+        )
+
+    for r in tqdm(processes):
+        r.get()
+
+
 if __name__ == "__main__":
-    main()
+    prerender_single_scenario()

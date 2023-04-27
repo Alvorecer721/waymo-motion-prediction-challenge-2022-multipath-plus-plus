@@ -29,21 +29,31 @@ class MLP(nn.Module):
 
 
 class NormalMLP(nn.Module):
+    """
+     implements a custom Multi-Layer Perceptron (MLP) neural network architecture.
+     The main purpose of an MLP is to learn a function that maps an input tensor to an output tensor by learning weights through a series of fully connected layers.
+    """
     def __init__(self, config):
         super().__init__()
         modules = []
         layers = config["layers"]
         assert len(layers) > 0
+
         if config["pre_batchnorm"]:
             modules.append(nn.BatchNorm1d(layers[0]))
+
         if config["pre_activation"]:
             modules.append(nn.ReLU())
+
         for i in range(1, len(layers)):
             modules.append(nn.Linear(layers[i - 1], layers[i]))
+
+            # apply batch normalization to the output of the previous layers
             if i < len(layers) - 1:
                 if config["batchnorm"]:
                     modules.append(nn.BatchNorm1d(layers[i]))
                 modules.append(nn.ReLU())
+
         self._mlp = nn.ModuleList(modules)
 
     def forward(self, x):
@@ -56,8 +66,6 @@ class NormalMLP(nn.Module):
             tmp.append(x)
             assert torch.isfinite(x).all()
         return x
-        output = self._mlp(x)
-        return output
             
 
 class CGBlock(nn.Module):
