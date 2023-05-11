@@ -19,12 +19,12 @@ def calculate_normalization_coefficients(
 ):
 
     total_ds = {
-        'target/history/agent_features': np.empty((0, history_timesteps, agent_feature_count)),
-        'other/history/agent_features': np.empty((0, history_timesteps, agent_feature_count)),
-        'target/history/agent_features_diff': np.empty((0, history_timesteps - 1, agent_diff_feature_count)),
-        'other/history/agent_features_diff': np.empty((0, history_timesteps - 1, agent_diff_feature_count)),
-        'road_network_embeddings': np.empty((0, 1, road_network_feature_count)),
-        'target/future/xy': np.empty((0, future_timesteps, 2))
+        'target/history/agent_features': np.empty((0, agent_feature_count)),
+        'other/history/agent_features': np.empty((0, agent_feature_count)),
+        'target/history/agent_features_diff': np.empty((0, agent_diff_feature_count)),
+        'other/history/agent_features_diff': np.empty((0, agent_diff_feature_count)),
+        'road_network_embeddings': np.empty((0, road_network_feature_count)),
+        'target/future/xy': np.empty((0, 2))
     }
 
     for i in tqdm(range(len(dataset))):
@@ -68,7 +68,7 @@ def calculate_normalization_coefficients(
 
         total_ds['road_network_embeddings'] = np.vstack((
             total_ds['road_network_embeddings'],
-            value['road_network_embeddings'][:, :, :road_network_feature_count]
+            value['road_network_embeddings'][:, :, :road_network_feature_count].squeeze()
         ))
 
         target_future_xy_value = value['target/future/xy']
@@ -83,11 +83,9 @@ def calculate_normalization_coefficients(
     means = {}
     stds = {}
 
-    axis = 0 if respect_validity else (0, 1)
-
     for k, v in total_ds.items():
-        means[k] = np.mean(total_ds[k], axis=axis)
-        stds[k] = np.std(total_ds[k], axis=axis)
+        means[k] = np.mean(total_ds[k], axis=0)
+        stds[k] = np.std(total_ds[k], axis=0)
 
     def _feature_key_to_aggregation_key(key):
         if key == 'target/history/lstm_data':
