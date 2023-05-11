@@ -3,9 +3,8 @@ import numpy as np
 
 from tqdm import tqdm
 
-from code.model.data import MultiPathPPDataset
-from code.prerender.utils.utils import get_config
-
+from ..model.data import MultiPathPPDataset
+from ..prerender.utils.utils import get_config
 
 def calculate_normalization_coefficients(
         dataset,
