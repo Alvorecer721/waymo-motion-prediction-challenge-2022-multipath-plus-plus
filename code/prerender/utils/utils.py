@@ -40,33 +40,6 @@ def get_filter_valid_anget_history():
     return result
 
 
-def get_normalize_data():
-    return {
-        "target": {
-            "xy": {
-                "mean": np.array([[[-3.0173979, 0.00575967]]]),
-                "std": np.array([[[3.7542882, 0.11941358]]])},
-            "yaw": {
-                "mean": np.array([[[0.00815599]]]),
-                "std": np.array([[[1.0245908]]])},
-            "speed": {
-                "mean": np.array([[[6.1731253]]]),
-                "std": np.array([[[5.53667]]])}},
-        "other": {
-            "xy": {
-                "mean": np.array([[[9.855061, 2.6597235]]]),
-                "std": np.array([[[44.58452, 34.069477]]])},
-            "yaw": {
-                "mean": np.array([[[1.6482836]]]),
-                "std": np.array([[[3.7098966]]])},
-            "speed": {
-                "mean": np.array([[[2.5248919]]]),
-                "std": np.array([[[4.806048]]])}},
-        "road_network_segments": {
-            "mean": np.array([[[11.440233, 3.4300654]]]),
-            "std": np.array([[[66.125916, 53.79835]]])}}
-
-
 if __name__ == "__main__":
     config = get_config('/Users/xuyixuan/Downloads/Project/waymo-motion-prediction-challenge-2022-multipath-plus-plus/code/configs/prerender.yaml')
     print(config)

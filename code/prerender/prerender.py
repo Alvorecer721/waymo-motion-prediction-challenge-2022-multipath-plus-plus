@@ -65,4 +65,4 @@ def prerender_single_scenario():
 
 
 if __name__ == "__main__":
-    prerender_single_scenario()
+    main()
