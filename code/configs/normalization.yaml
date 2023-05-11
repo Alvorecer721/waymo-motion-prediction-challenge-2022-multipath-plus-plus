@@ -16,3 +16,4 @@ feature_dimension_map:
   other/history/mcg_input_data: 24
   road_network_embeddings: 27
   target/future/xy: 2
+respect_validity: True

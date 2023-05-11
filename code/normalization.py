@@ -15,6 +15,7 @@ def calculate_normalization_coefficients(
         agent_diff_feature_count,
         road_network_feature_count,
         feature_dimension_map,
+        respect_validity
 ):
 
     total_ds = {
@@ -31,22 +32,38 @@ def calculate_normalization_coefficients(
         if value is None:
             continue
 
+        target_history_lstm_value = value['target/history/lstm_data'][:, :, :agent_feature_count]
         total_ds['target/history/agent_features'] = np.vstack((
             total_ds['target/history/agent_features'],
-            value['target/history/lstm_data'][:, :, :agent_feature_count]
+            (
+                target_history_lstm_value[value['target/history/valid'].squeeze(axis=2) > 0] if respect_validity else
+                target_history_lstm_value
+            )
         ))
+        other_history_lstm_value = value['other/history/lstm_data'][:, :, :agent_feature_count]
         total_ds['other/history/agent_features'] = np.vstack((
             total_ds['other/history/agent_features'],
-            value['other/history/lstm_data'][:, :, :agent_feature_count]
+            (
+                other_history_lstm_value[value['other/history/valid'].squeeze(axis=2) > 0] if respect_validity else
+                other_history_lstm_value
+            )
         ))
 
+        target_history_lstm_diff_value = value['target/history/lstm_data_diff'][:, :, :agent_diff_feature_count]
         total_ds['target/history/agent_features_diff'] = np.vstack((
             total_ds['target/history/agent_features_diff'],
-            value['target/history/lstm_data_diff'][:, :, :agent_diff_feature_count]
+            (
+                target_history_lstm_diff_value[value['target/history/valid_diff'].squeeze(axis=2) > 0] if respect_validity else
+                target_history_lstm_diff_value
+            )
         ))
+        other_history_lstm_diff_value = value['target/history/lstm_data_diff'][:, :, :agent_diff_feature_count]
         total_ds['other/history/agent_features_diff'] = np.vstack((
             total_ds['other/history/agent_features_diff'],
-            value['other/history/lstm_data_diff'][:, :, :agent_diff_feature_count]
+            (
+                other_history_lstm_diff_value[value['other/history/valid_diff'].squeeze(axis=2) > 0] if respect_validity else
+                other_history_lstm_diff_value
+            )
         ))
 
         total_ds['road_network_embeddings'] = np.vstack((
@@ -54,14 +71,23 @@ def calculate_normalization_coefficients(
             value['road_network_embeddings'][:, :, :road_network_feature_count]
         ))
 
-        total_ds['target/future/xy'] = np.vstack((total_ds['target/future/xy'], value['target/future/xy']))
+        target_future_xy_value = value['target/future/xy']
+        total_ds['target/future/xy'] = np.vstack((
+            total_ds['target/future/xy'],
+            (
+                target_future_xy_value[value['target/future/valid'].squeeze(axis=2) > 0] if respect_validity else
+                target_future_xy_value
+            )
+        ))
 
     means = {}
     stds = {}
 
+    axis = 0 if respect_validity else (0, 1)
+
     for k, v in total_ds.items():
-        means[k] = np.mean(total_ds[k], axis=(0, 1))
-        stds[k] = np.std(total_ds[k], axis=(0, 1))
+        means[k] = np.mean(total_ds[k], axis=axis)
+        stds[k] = np.std(total_ds[k], axis=axis)
 
     def _feature_key_to_aggregation_key(key):
         if key == 'target/history/lstm_data':
@@ -112,6 +138,7 @@ def main():
         agent_diff_feature_count=config['agent_diff_feature_count'],
         road_network_feature_count=config['road_network_feature_count'],
         feature_dimension_map=config['feature_dimension_map'],
+        respect_validity=config['respect_validity']
     )
 
     np.save(args.output_path, result)
