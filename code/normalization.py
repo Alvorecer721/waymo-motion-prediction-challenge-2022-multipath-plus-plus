@@ -36,7 +36,7 @@ def calculate_normalization_coefficients(
             value['target/history/lstm_data'][:, :, :agent_feature_count]
         ))
         total_ds['other/history/agent_features'] = np.vstack((
-            total_ds['other/agent_features'],
+            total_ds['other/history/agent_features'],
             value['other/history/lstm_data'][:, :, :agent_feature_count]
         ))
 
