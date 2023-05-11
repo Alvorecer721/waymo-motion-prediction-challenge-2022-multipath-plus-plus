@@ -340,7 +340,7 @@ class MultiPathPPDataset(Dataset):
             idx = 0
             np_data = dict(np.load(self._files[0], allow_pickle=True))
 
-        return self._calculate_features(self, idx, np_data)
+        return self._calculate_features(idx, np_data)
 
     @staticmethod
     def collate_fn(batch):
