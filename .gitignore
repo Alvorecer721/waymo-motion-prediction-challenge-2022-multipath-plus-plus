@@ -22,3 +22,4 @@ archive/*
 .vscode
 **/*.code-workspace
 code/run.sh
+.idea
