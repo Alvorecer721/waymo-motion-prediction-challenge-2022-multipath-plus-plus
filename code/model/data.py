@@ -319,14 +319,15 @@ class MultiPathPPDataset(Dataset):
         np_data = self._compute_mcg_input_data(np_data)
         return np_data
 
-    def get_item_with_retries(self, idx, retry_attempts=5):
-        for i in range(retry_attempts):
+    def get_item_with_retries(self, idx, read_attempts=5):
+        for i in range(read_attempts):
             try:
                 np_data = dict(np.load(self._files[idx], allow_pickle=True))
             except:
-                if i + 1 == retry_attempts:
-                    print(f"Skipping {self._files[idx]} due to reading error after {retry_attempts} retry attempts")
+                if i + 1 == read_attempts:
+                    print(f"Skipping {self._files[idx]} due to reading error after {read_attempts} read attempts")
                     return None
+                print(f"Retrying to read {self._files[idx]} after read attempt #{i}")
                 continue
             break
 
