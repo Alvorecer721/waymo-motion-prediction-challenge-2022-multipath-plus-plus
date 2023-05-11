@@ -37,7 +37,7 @@ def get_git_revision_short_hash():
 
 
 config = get_config(sys.argv[1]) # configs/final_RoP_Cov_Single.yaml
-normalization_coefs = np.load(sys.argv[2], allow_pickle=True) # path to normalization coefficients (.npy)
+normalization_coefs = np.load(sys.argv[2], allow_pickle=True)[()] # path to normalization coefficients (.npy)
 alias = sys.argv[1].split("/")[-1].split(".")[0]
 try:
     models_path = os.path.join("../models", f"{alias}__{get_git_revision_short_hash()}")
