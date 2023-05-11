@@ -303,13 +303,7 @@ class MultiPathPPDataset(Dataset):
                 [lstm_input_data, timestamp_ohe], axis=-1)
         return data
 
-    def __getitem__(self, idx):
-        try:
-            np_data = dict(np.load(self._files[idx], allow_pickle=True))
-        except:
-            print("Error reading", self._files[idx])
-            idx = 0
-            np_data = dict(np.load(self._files[0], allow_pickle=True))
+    def _calculate_features(self, idx, np_data):
         np_data["scenario_id"] = np_data["scenario_id"].item()
         np_data["filename"] = self._files[idx]
         np_data["target/history/yaw"] = angle_to_range(np_data["target/history/yaw"])
@@ -324,6 +318,29 @@ class MultiPathPPDataset(Dataset):
         np_data = self._compute_lstm_input_data(np_data)
         np_data = self._compute_mcg_input_data(np_data)
         return np_data
+
+    def get_item_with_retries(self, idx, retry_attempts=5):
+        for i in range(retry_attempts):
+            try:
+                np_data = dict(np.load(self._files[idx], allow_pickle=True))
+            except:
+                if i + 1 == retry_attempts:
+                    print(f"Skipping {self._files[idx]} due to reading error after {retry_attempts} retry attempts")
+                    return None
+                continue
+            break
+
+        return self._calculate_features(self, idx, np_data)
+
+    def __getitem__(self, idx):
+        try:
+            np_data = dict(np.load(self._files[idx], allow_pickle=True))
+        except:
+            print("Error reading", self._files[idx])
+            idx = 0
+            np_data = dict(np.load(self._files[0], allow_pickle=True))
+
+        return self._calculate_features(self, idx, np_data)
 
     @staticmethod
     def collate_fn(batch):
