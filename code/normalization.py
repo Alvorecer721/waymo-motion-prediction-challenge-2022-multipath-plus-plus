@@ -57,7 +57,7 @@ def calculate_normalization_coefficients(
                 target_history_lstm_diff_value
             )
         ))
-        other_history_lstm_diff_value = value['target/history/lstm_data_diff'][:, :, :agent_diff_feature_count]
+        other_history_lstm_diff_value = value['other/history/lstm_data_diff'][:, :, :agent_diff_feature_count]
         total_ds['other/history/agent_features_diff'] = np.vstack((
             total_ds['other/history/agent_features_diff'],
             (
