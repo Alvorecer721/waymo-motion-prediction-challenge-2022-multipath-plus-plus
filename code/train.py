@@ -37,6 +37,7 @@ def get_git_revision_short_hash():
 
 
 config = get_config(sys.argv[1]) # configs/final_RoP_Cov_Single.yaml
+normalization_coefs = np.load(sys.argv[2]) # path to normalization coefficients (.npy)
 alias = sys.argv[1].split("/")[-1].split(".")[0]
 try:
     models_path = os.path.join("../models", f"{alias}__{get_git_revision_short_hash()}")
@@ -73,7 +74,7 @@ for epoch in tqdm(range(config["train"]["n_epochs"])):
         model.train()
         optimizer.zero_grad()
         if config["train"]["normalize"]:
-            data = normalize(data, config)
+            data = normalize(data, normalization_coefs)
         dict_to_cuda(data)
         probas, coordinates, covariance_matrices, loss_coeff = model(data, num_steps)
         assert torch.isfinite(coordinates).all()
@@ -117,7 +118,7 @@ for epoch in tqdm(range(config["train"]["n_epochs"])):
                 first_batch = True
                 for data in tqdm(val_dataloader):
                     if config["train"]["normalize"]:
-                        data = normalize(data, config)
+                        data = normalize(data, normalization_coefs)
                     dict_to_cuda(data)
                     probas, coordinates, _, _ = model(data, num_steps)
                     if config["train"]["normalize_output"]:
