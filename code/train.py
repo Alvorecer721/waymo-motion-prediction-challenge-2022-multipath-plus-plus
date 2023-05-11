@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 from model.modules import MLP, CGBlock, MCGBlock, HistoryEncoder
 from model.multipathpp import MultiPathPP
-from model.data import get_dataloader, dict_to_cuda, normalize
+from model.data import get_dataloader, dict_to_cuda, normalize, normalize_future_xy, denormalize_future_xy
 from model.losses import pytorch_neg_multi_log_likelihood_batch, nll_with_covariances
 from prerender.utils.utils import data_to_numpy, get_config
 import subprocess
@@ -37,7 +37,7 @@ def get_git_revision_short_hash():
 
 
 config = get_config(sys.argv[1]) # configs/final_RoP_Cov_Single.yaml
-normalization_coefs = np.load(sys.argv[2]) # path to normalization coefficients (.npy)
+normalization_coefs = np.load(sys.argv[2], allow_pickle=True) # path to normalization coefficients (.npy)
 alias = sys.argv[1].split("/")[-1].split(".")[0]
 try:
     models_path = os.path.join("../models", f"{alias}__{get_git_revision_short_hash()}")
@@ -83,7 +83,7 @@ for epoch in tqdm(range(config["train"]["n_epochs"])):
         xy_future_gt = data["target/future/xy"]
         if config["train"]["normalize_output"]:
             # assert not (config["train"]["normalize_output"] and config["train"]["trainable_cov"])
-            xy_future_gt = (data["target/future/xy"] - torch.Tensor([1.4715e+01, 4.3008e-03]).cuda()) / 10.
+            xy_future_gt = normalize_future_xy(data["target/future/xy"], normalization_coefs)
             assert torch.isfinite(xy_future_gt).all()
         loss = nll_with_covariances(
             xy_future_gt, coordinates, probas, data["target/future/valid"].squeeze(-1),
@@ -94,7 +94,7 @@ for epoch in tqdm(range(config["train"]["n_epochs"])):
             torch.nn.utils.clip_grad_norm_(model.parameters(), config["train"]["clip_grad_norm"])
         optimizer.step()
         if config["train"]["normalize_output"]:
-            _coordinates = coordinates.detach() * 10. + torch.Tensor([1.4715e+01, 4.3008e-03]).cuda()
+            _coordinates = denormalize_future_xy(coordinates.detach(), normalization_coefs)
         else:
             _coordinates = coordinates.detach()
         if num_steps % 10 == 0:

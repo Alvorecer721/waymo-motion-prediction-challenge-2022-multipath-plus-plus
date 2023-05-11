@@ -13,9 +13,15 @@ def angle_to_range(yaw):
 def normalize(data, coefficients):
     means = coefficients['mean']
     stds = coefficients['std']
-    assert means.keys() == stds.keys()
 
-    for k in means:
+    keys = [
+        'target/history/lstm_data', 'target/history/lstm_data_diff',
+        'other/history/lstm_data', 'other/history/lstm_data_diff',
+        'target/history/mcg_input_data', 'other/history/mcg_input_data',
+        'road_network_embeddings'
+    ]
+
+    for k in keys:
         data[k] = (data[k] - means[k]) / (stds[k] + 1e-6)  # avoid divide by zero
         data[k].clamp_(-15, 15)
 
@@ -24,6 +30,18 @@ def normalize(data, coefficients):
     data['target/history/lstm_data'] *= data['target/history/valid']
     data['other/history/lstm_data'] *= data['other/history/valid']
     return data
+
+
+def normalize_future_xy(data, coefficients):
+    mean = torch.from_numpy(coefficients['mean']['target/future/xy']).cuda()
+    std = torch.from_numpy(coefficients['std']['target/future/xy']).cuda() + 1e-6
+    return (data["target/future/xy"] - mean) / std
+
+
+def denormalize_future_xy(data, coefficients):
+    mean = torch.from_numpy(coefficients['mean']['target/future/xy']).cuda()
+    std = torch.from_numpy(coefficients['std']['target/future/xy']).cuda() + 1e-6
+    return data * std + mean
 
 
 def dict_to_cuda(d):
