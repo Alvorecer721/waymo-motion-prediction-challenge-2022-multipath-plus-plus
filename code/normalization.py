@@ -96,7 +96,7 @@ def main():
     args = parser.parse_args()
 
     config = get_config(args.config)
-    config['data_path'] = args.data_path
+    config['dataset_config']['data_path'] = args.data_path
 
     dataset = MultiPathPPDataset(config["dataset_config"])
 
