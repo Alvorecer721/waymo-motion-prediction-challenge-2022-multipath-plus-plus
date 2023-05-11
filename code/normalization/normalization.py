@@ -49,7 +49,7 @@ def calculate_normalization_coefficients(
 
         total_ds['road_network_embeddings'] = np.vstack((
             total_ds['road_network_embeddings'],
-            value['road_network_embeddings'][:, :,:road_network_feature_count]
+            value['road_network_embeddings'][:, :, :road_network_feature_count]
         ))
 
     means = {}
