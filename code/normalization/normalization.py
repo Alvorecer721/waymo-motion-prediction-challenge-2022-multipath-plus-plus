@@ -29,21 +29,28 @@ def calculate_normalization_coefficients(
         if value is None:
             continue
 
-        total_ds['target/agent_features'] = np.vstack((total_ds['target/agent_features'],
-                                                       value['target/history/lstm_data'][:, :, :agent_feature_count]))
-        total_ds['other/agent_features'] = np.vstack((total_ds['other/agent_features'],
-                                                      value['other/history/lstm_data'][:, :, :agent_feature_count]))
+        total_ds['target/agent_features'] = np.vstack((
+            total_ds['target/agent_features'],
+            value['target/history/lstm_data'][:, :, :agent_feature_count]
+        ))
+        total_ds['other/agent_features'] = np.vstack((
+            total_ds['other/agent_features'],
+            value['other/history/lstm_data'][:, :, :agent_feature_count]
+        ))
 
-        total_ds['target/agent_features_diff'] = np.vstack((total_ds['target/agent_features_diff'],
-                                                            value['target/history/lstm_data_diff'][:, :,
-                                                            :agent_diff_feature_count]))
-        total_ds['other/agent_features_diff'] = np.vstack((total_ds['other/agent_features_diff'],
-                                                           value['other/history/lstm_data_diff'][:, :,
-                                                           :agent_diff_feature_count]))
+        total_ds['target/agent_features_diff'] = np.vstack((
+            total_ds['target/agent_features_diff'],
+            value['target/history/lstm_data_diff'][:, :, :agent_diff_feature_count]
+        ))
+        total_ds['other/agent_features_diff'] = np.vstack((
+            total_ds['other/agent_features_diff'],
+            value['other/history/lstm_data_diff'][:, :, :agent_diff_feature_count]
+        ))
 
-        total_ds['road_network_embeddings'] = np.vstack((total_ds['road_network_embeddings'],
-                                                         value['road_network_embeddings'][:, :,
-                                                         :road_network_feature_count]))
+        total_ds['road_network_embeddings'] = np.vstack((
+            total_ds['road_network_embeddings'],
+            value['road_network_embeddings'][:, :,:road_network_feature_count]
+        ))
 
     means = {}
     stds = {}
