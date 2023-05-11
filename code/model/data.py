@@ -330,7 +330,7 @@ class MultiPathPPDataset(Dataset):
                 continue
             break
 
-        return self._calculate_features(self, idx, np_data)
+        return self._calculate_features(idx, np_data)
 
     def __getitem__(self, idx):
         try:
