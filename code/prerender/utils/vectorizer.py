@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from .utils import (
-    filter_valid, get_filter_valid_roadnetwork_keys, get_filter_valid_anget_history,
-    get_normalize_data)
+from .utils import filter_valid, get_filter_valid_roadnetwork_keys, get_filter_valid_anget_history
 
 
 class Renderer(ABC):
@@ -290,21 +288,9 @@ class MultiPathPPRenderer(Renderer):
             segment_end_minus_r_norm, segment_type_ohe], axis=-1)
         return resulting_embeddings[:, None, :]
 
-    def _normalize_tensor(self, tensor, mean, std):
-        if not self._config["normalize"]:
-            return tensor
-        raise Exception("Normalizing here is really not what you want. Please use normalization from model.data")
-        return (tensor - mean) / (std + 1e-6)
-
-    def _normalize(self, tensor, i, key):
+    def _split_target_agent_and_other_agents(self, tensor, i, key):
         target_data = tensor[i][None,]
         other_data = np.delete(tensor, i, axis=0)
-        if not self._config["normalize"]:
-            return target_data, other_data
-
-        # Here actually does nothing, because normalization is done in model.data
-        target_data = self._normalize_tensor(target_data, **get_normalize_data()["target"][key])
-        other_data = self._normalize_tensor(other_data, **get_normalize_data()["other"][key])
         return target_data, other_data
 
     def _get_trajectory_class(self, data):
@@ -395,32 +381,48 @@ class MultiPathPPRenderer(Renderer):
                 continue
             current_agent_scene_shift = agent_history_info["history/xy"][i][-1]
             current_agent_scene_yaw = agent_history_info["history/bbox_yaw"][i][-1]
+
             current_scene_road_network_coordinates = self._transfrom_to_agent_coordinate_system(
-                road_network_info["segments"], current_agent_scene_shift, current_agent_scene_yaw)
-            current_scene_road_network_coordinates, current_scene_road_network_types = \
-                self._filter_closest_segments(
-                    current_scene_road_network_coordinates, road_network_info["segment_types"])
-            current_scene_road_network_coordinates = self._normalize_tensor(
-                current_scene_road_network_coordinates,
-                **get_normalize_data()["road_network_segments"])
+                road_network_info["segments"],
+                current_agent_scene_shift,
+                current_agent_scene_yaw
+            )
+            current_scene_road_network_coordinates, current_scene_road_network_types = self._filter_closest_segments(
+                    current_scene_road_network_coordinates,
+                    road_network_info["segment_types"]
+            )
+
             road_segments_embeddings = self._generate_segment_embeddings(
-                current_scene_road_network_coordinates, current_scene_road_network_types)
+                current_scene_road_network_coordinates,
+                current_scene_road_network_types
+            )
+
             current_scene_agents_coordinates_history = self._transfrom_to_agent_coordinate_system(
-                agent_history_info["history/xy"], current_agent_scene_shift,
-                current_agent_scene_yaw)
+                agent_history_info["history/xy"],
+                current_agent_scene_shift,
+                current_agent_scene_yaw
+            )
             current_scene_agents_coordinates_future = self._transfrom_to_agent_coordinate_system(
-                agent_history_info["future/xy"], current_agent_scene_shift, current_agent_scene_yaw)
-            current_scene_agents_yaws_history = \
-                agent_history_info["history/bbox_yaw"] - current_agent_scene_yaw
-            current_scene_agents_yaws_future = \
-                agent_history_info["future/bbox_yaw"] - current_agent_scene_yaw
+                agent_history_info["future/xy"],
+                current_agent_scene_shift,
+                current_agent_scene_yaw
+            )
+
+            current_scene_agents_yaws_history = agent_history_info["history/bbox_yaw"] - current_agent_scene_yaw
+            current_scene_agents_yaws_future = agent_history_info["future/bbox_yaw"] - current_agent_scene_yaw
+
             (current_scene_target_agent_coordinates_history,
-             current_scene_other_agents_coordinates_history) = self._normalize(
-                current_scene_agents_coordinates_history, i, "xy")
-            current_scene_target_agent_yaws_history, current_scene_other_agents_yaws_history = \
-                self._normalize(current_scene_agents_yaws_history, i, "yaw")
-            current_scene_target_agent_speed_history, current_scene_other_agents_speed_history = \
-                self._normalize(agent_history_info["history/speed"], i, "speed")
+             current_scene_other_agents_coordinates_history) = self._split_target_agent_and_other_agents(
+                current_scene_agents_coordinates_history, i, "xy"
+            )
+            (current_scene_target_agent_yaws_history,
+             current_scene_other_agents_yaws_history) = self._split_target_agent_and_other_agents(
+                current_scene_agents_yaws_history, i, "yaw"
+            )
+            (current_scene_target_agent_speed_history,
+             current_scene_other_agents_speed_history) = self._split_target_agent_and_other_agents(
+                agent_history_info["history/speed"], i, "speed"
+            )
 
             scene_data = {
                 "shift": current_agent_scene_shift[None,],

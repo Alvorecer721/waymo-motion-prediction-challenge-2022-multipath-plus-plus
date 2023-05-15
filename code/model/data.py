@@ -10,185 +10,38 @@ def angle_to_range(yaw):
     return yaw
 
 
-def normalize(data, config):
-    """
-    The function starts by checking which features are specified in the configuration.
-    There are three possible feature configurations:
-    - ("xy", "yaw", "speed", "valid")
-    - ("xy", "yaw", "speed", "width", "length", "valid")
-    - ("xy", "yaw_sin", "yaw_cos", "speed", "valid")
-    Based on the selected features, the function sets the normalization means and standard deviations. These are hardcoded dictionaries containing the mean and standard deviation values for each feature.
-    """
+def normalize(data, coefficients):
+    means = coefficients['mean']
+    stds = coefficients['std']
 
-    features = tuple(config["train"]["data_config"]["dataset_config"]["lstm_input_data"])
-    if features == ("xy", "yaw", "speed", "valid"):
-        normalizarion_means = {
-            "target/history/lstm_data": np.array(
-                [-2.9633209705352783, 0.005308846477419138, -0.0032201323192566633, 6.059162616729736, 0.0, 0.0, 0.0,
-                 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "target/history/lstm_data_diff": np.array(
-                [0.5990191698074341, -0.001871750457212329, 0.0006287908181548119, 0.0017820476787164807, 0.0, 0.0, 0.0,
-                 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "other/history/lstm_data": np.array(
-                [5.600991249084473, 1.4952889680862427, -0.013044122606515884, 1.4446792602539062, 0.0, 0.0, 0.0, 0.0,
-                 0.0, 0.0, 0.0], dtype=np.float32),
-            "other/history/lstm_data_diff": np.array(
-                [0.02598918415606022, -0.0008670506067574024, 9.520053572487086e-05, 0.0014659279258921742, 0.0, 0.0,
-                 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "target/history/mcg_input_data": np.array(
-                [-2.9633209705352783, 0.005308846477419138, -0.0032201323192566633, 6.059162616729736, 0.0, 0.0, 0.0,
-                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "other/history/mcg_input_data": np.array(
-                [5.600991249084473, 1.4952889680862427, -0.013044122606515884, 1.4446792602539062, 0.0, 0.0, 0.0, 0.0,
-                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "road_network_embeddings": np.array(
-                [77.35614776611328, 0.12081649899482727, 0.054874029010534286, 0.0041899788193404675,
-                 -0.0015182862989604473, 2.011556386947632, 0.9601882696151733, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)}
-        normalizarion_stds = {
-            "target/history/lstm_data": np.array(
-                [3.73840594291687, 0.11283700168132782, 0.10155521333217621, 5.5526909828186035, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0, 1.0], dtype=np.float32),
-            "target/history/lstm_data_diff": np.array(
-                [0.5629123449325562, 0.03494573011994362, 0.045531339943408966, 0.5765337347984314, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0, 1.0], dtype=np.float32),
-            "other/history/lstm_data": np.array(
-                [33.89802932739258, 25.64965057373047, 1.3623442649841309, 3.841723680496216, 1.0, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0], dtype=np.float32),
-            "other/history/lstm_data_diff": np.array(
-                [0.360639750957489, 0.18855567276477814, 0.08697637170553207, 0.43654000759124756, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0, 1.0], dtype=np.float32),
-            "target/history/mcg_input_data": np.array(
-                [3.73840594291687, 0.11283700168132782, 0.10155521333217621, 5.5526909828186035, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32),
-            "other/history/mcg_input_data": np.array(
-                [33.89802932739258, 25.64965057373047, 1.3623442649841309, 3.841723680496216, 1.0, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32),
-            "road_network_embeddings": np.array(
-                [36.71141052246094, 0.7614905834197998, 0.6328929662704468, 0.7438844442367554, 0.6675090193748474,
-                 0.9678531289100647, 1.1907329559326172, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32)}
-    elif features == ("xy", "yaw", "speed", "width", "length", "valid"):
-        normalizarion_means = {
-            "target/history/lstm_data": np.array(
-                [-2.9633283615112305, 0.005309064872562885, -0.003220283193513751, 6.059159278869629,
-                 1.9252972602844238, 4.271720886230469, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "target/history/lstm_data_diff": np.array(
-                [0.5990215539932251, -0.0018718164646998048, 0.0006288147415034473, 0.0017819292843341827, 0.0, 0.0,
-                 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "other/history/lstm_data": np.array(
-                [5.601348876953125, 1.4943491220474243, -0.013019951991736889, 1.44475519657135, 1.072572946548462,
-                 2.4158480167388916, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "other/history/lstm_data_diff": np.array(
-                [0.025991378352046013, -0.0008657555445097387, 9.549396054353565e-05, 0.001465122913941741, 0.0, 0.0,
-                 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "target/history/mcg_input_data": np.array(
-                [-2.9633283615112305, 0.005309064872562885, -0.003220283193513751, 6.059159278869629,
-                 1.9252972602844238, 4.271720886230469, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "other/history/mcg_input_data": np.array(
-                [5.601348876953125, 1.4943491220474243, -0.013019951991736889, 1.44475519657135, 1.072572946548462,
-                 2.4158480167388916, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                 0.0, 0.0], dtype=np.float32),
-            "road_network_embeddings": np.array(
-                [77.35582733154297, 0.12082172930240631, 0.05486442521214485, 0.004187341313809156,
-                 -0.0015162595082074404, 2.011558771133423, 0.9601883888244629, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
-        }
-        normalizarion_stds = {
-            "target/history/lstm_data": np.array(
-                [3.738459825515747, 0.11283490061759949, 0.10153655707836151, 5.553133487701416, 0.5482628345489502,
-                 1.6044323444366455, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32),
-            "target/history/lstm_data_diff": np.array(
-                [0.5629324316978455, 0.03495170176029205, 0.04547161981463432, 0.5762772560119629, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0, 1.0], dtype=np.float32),
-            "other/history/lstm_data": np.array(
-                [33.899658203125, 25.64937973022461, 1.3623465299606323, 3.8417460918426514, 1.0777146816253662,
-                 2.4492409229278564, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32),
-            "other/history/lstm_data_diff": np.array(
-                [0.36061710119247437, 0.1885228455066681, 0.08698483556509018, 0.43648791313171387, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0, 1.0], dtype=np.float32),
-            "target/history/mcg_input_data": np.array(
-                [3.738459825515747, 0.11283490061759949, 0.10153655707836151, 5.553133487701416, 0.5482628345489502,
-                 1.6044323444366455, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0], dtype=np.float32),
-            "other/history/mcg_input_data": np.array(
-                [33.899658203125, 25.64937973022461, 1.3623465299606323, 3.8417460918426514, 1.0777146816253662,
-                 2.4492409229278564, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0], dtype=np.float32),
-            "road_network_embeddings": np.array(
-                [36.71162414550781, 0.761500358581543, 0.6328969597816467, 0.7438802719116211, 0.6675100326538086,
-                 0.9678668975830078, 1.1907216310501099, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32)
-        }
-    elif features == ("xy", "yaw_sin", "yaw_cos", "speed", "valid"):
-        normalizarion_means = {
-            "target/history/lstm_data": np.array(
-                [-2.963352680206299, 0.005309187341481447, -0.0031980471685528755, 0.9703145623207092,
-                 6.059169292449951, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "target/history/lstm_data_diff": np.array(
-                [0.5990246534347534, -0.0018718652427196503, 0.0006487328791990876, 0.9678786993026733,
-                 0.0017822050722315907, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "other/history/lstm_data": np.array(
-                [5.601662635803223, 1.494566798210144, 0.0031144910026341677, 0.0433664545416832, 1.4448018074035645,
-                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "other/history/lstm_data_diff": np.array(
-                [0.025993138551712036, -0.0008638832368887961, 9.389788465341553e-05, 0.5554189085960388,
-                 0.0014658357249572873, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            "target/history/mcg_input_data": np.array(
-                [-2.963352680206299, 0.005309187341481447, -0.0031980471685528755, 0.9703145623207092,
-                 6.059169292449951, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                 0.0], dtype=np.float32),
-            "other/history/mcg_input_data": np.array(
-                [5.601662635803223, 1.494566798210144, 0.0031144910026341677, 0.0433664545416832, 1.4448018074035645,
-                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                dtype=np.float32),
-            "road_network_embeddings": np.array(
-                [77.35610961914062, 0.12084171921014786, 0.054869141429662704, 0.004183736629784107,
-                 -0.0015176727902144194, 2.0115585327148438, 0.960183322429657, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
-        }
-        normalizarion_stds = {
-            "target/history/lstm_data": np.array(
-                [3.738659143447876, 0.11287359893321991, 0.07889654487371445, 0.15939009189605713, 5.5531511306762695,
-                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32),
-            "target/history/lstm_data_diff": np.array(
-                [0.5629534721374512, 0.03495863825082779, 0.024357756599783897, 0.1730499267578125, 0.5766724944114685,
-                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32),
-            "other/history/lstm_data": np.array(
-                [33.8993034362793, 25.648475646972656, 0.49251335859298706, 0.5677053928375244, 3.8419690132141113, 1.0,
-                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32),
-            "other/history/lstm_data_diff": np.array(
-                [0.36064836382865906, 0.1885451078414917, 0.03633992373943329, 0.4971870481967926, 0.43645790219306946,
-                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32),
-            "target/history/mcg_input_data": np.array(
-                [3.738659143447876, 0.11287359893321991, 0.07889654487371445, 0.15939009189605713, 5.5531511306762695,
-                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-                dtype=np.float32),
-            "other/history/mcg_input_data": np.array(
-                [33.8993034362793, 25.648475646972656, 0.49251335859298706, 0.5677053928375244, 3.8419690132141113, 1.0,
-                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-                dtype=np.float32),
-            "road_network_embeddings": np.array(
-                [36.711769104003906, 0.7614925503730774, 0.6328906416893005, 0.7438828349113464, 0.667508602142334,
-                 0.9677839279174805, 1.19071626663208, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32)
-        }
-    else:
-        raise Exception("Wrong features set")
     keys = [
         'target/history/lstm_data', 'target/history/lstm_data_diff',
         'other/history/lstm_data', 'other/history/lstm_data_diff',
         'target/history/mcg_input_data', 'other/history/mcg_input_data',
-        'road_network_embeddings']
+        'road_network_embeddings'
+    ]
+
     for k in keys:
-        data[k] = (data[k] - normalizarion_means[k]) / (normalizarion_stds[k] + 1e-6)  # avoid divide by zero
+        data[k] = (data[k] - means[k]) / (stds[k] + 1e-6)  # avoid divide by zero
         data[k].clamp_(-15, 15)
-    data[f"target/history/lstm_data_diff"] *= data[f"target/history/valid_diff"]
-    data[f"other/history/lstm_data_diff"] *= data[f"other/history/valid_diff"]
-    data[f"target/history/lstm_data"] *= data[f"target/history/valid"]
-    data[f"other/history/lstm_data"] *= data[f"other/history/valid"]
+
+    data['target/history/lstm_data_diff'] *= data['target/history/valid_diff']
+    data['other/history/lstm_data_diff'] *= data['other/history/valid_diff']
+    data['target/history/lstm_data'] *= data['target/history/valid']
+    data['other/history/lstm_data'] *= data['other/history/valid']
     return data
+
+
+def normalize_future_xy(data, coefficients):
+    mean = torch.from_numpy(coefficients['mean']['target/future/xy']).cuda()
+    std = torch.from_numpy(coefficients['std']['target/future/xy']).cuda() + 1e-6
+    return (data["target/future/xy"] - mean) / std
+
+
+def denormalize_future_xy(data, coefficients):
+    mean = torch.from_numpy(coefficients['mean']['target/future/xy']).cuda()
+    std = torch.from_numpy(coefficients['std']['target/future/xy']).cuda() + 1e-6
+    return data * std + mean
 
 
 def dict_to_cuda(d):
@@ -303,13 +156,7 @@ class MultiPathPPDataset(Dataset):
                 [lstm_input_data, timestamp_ohe], axis=-1)
         return data
 
-    def __getitem__(self, idx):
-        try:
-            np_data = dict(np.load(self._files[idx], allow_pickle=True))
-        except:
-            print("Error reading", self._files[idx])
-            idx = 0
-            np_data = dict(np.load(self._files[0], allow_pickle=True))
+    def _calculate_features(self, idx, np_data):
         np_data["scenario_id"] = np_data["scenario_id"].item()
         np_data["filename"] = self._files[idx]
         np_data["target/history/yaw"] = angle_to_range(np_data["target/history/yaw"])
@@ -324,6 +171,30 @@ class MultiPathPPDataset(Dataset):
         np_data = self._compute_lstm_input_data(np_data)
         np_data = self._compute_mcg_input_data(np_data)
         return np_data
+
+    def get_item_with_retries(self, idx, read_attempts=5):
+        for i in range(read_attempts):
+            try:
+                np_data = dict(np.load(self._files[idx], allow_pickle=True))
+            except:
+                if i + 1 == read_attempts:
+                    print(f"Skipping {self._files[idx]} due to reading error after {read_attempts} read attempts")
+                    return None
+                print(f"Retrying to read {self._files[idx]} after read attempt #{i}")
+                continue
+            break
+
+        return self._calculate_features(idx, np_data)
+
+    def __getitem__(self, idx):
+        try:
+            np_data = dict(np.load(self._files[idx], allow_pickle=True))
+        except:
+            print("Error reading", self._files[idx])
+            idx = 0
+            np_data = dict(np.load(self._files[0], allow_pickle=True))
+
+        return self._calculate_features(idx, np_data)
 
     @staticmethod
     def collate_fn(batch):
