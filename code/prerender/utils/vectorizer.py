@@ -48,7 +48,8 @@ class TargetAgentFilteringPolicy:
         self._config = config
 
     def _get_only_interesting_agents(self, data, i):
-        return data["state/tracks_to_predict"][i] > 0
+        """add an additional condition to select target agents that are pedestrians only (type == 2)"""
+        return data["state/tracks_to_predict"][i] > 0 and data["state/type"][i] == 2
 
     def _get_only_fully_available_agents(self, data, i):
         """
@@ -69,12 +70,14 @@ class TargetAgentFilteringPolicy:
         Finally, the method checks if the number of valid timestamps for the agent at index i is equal to the total number of timestamps (n_timestamps).
         If they are equal, it means that the agent has valid information available for all timestamps, and the method returns True. Otherwise, it returns False.
         """
+
+        """add an additional condition to select target agents that are pedestrians only (type == 2)"""
         full_validity = np.concatenate([
             data["state/past/valid"], data["state/current/valid"], data["state/future/valid"]],
             axis=-1)
         n_timestamps = full_validity.shape[-1]
         n_valid_timestamps = full_validity.sum(axis=-1)
-        return n_valid_timestamps[i] == n_timestamps
+        return n_valid_timestamps[i] == n_timestamps and data["state/type"][i] == 2
         # return np.ones_like(n_valid_timestamps) * (n_valid_timestamps == n_timestamps)
 
     def _get_interesting_and_fully_available_agents(self, data, i):
