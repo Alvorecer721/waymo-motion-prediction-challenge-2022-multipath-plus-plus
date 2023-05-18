@@ -34,9 +34,11 @@ def main():
 
 
 def pre_render_records(dataset, vis_config, output_path):
+    args = parse_arguments()
+
     visualizers = get_visualizers(vis_config)
 
-    p = multiprocessing.Pool(20)
+    p = multiprocessing.Pool(args.n_jobs)
     processes = []
     k = 0
     for data in tqdm(dataset.as_numpy_iterator()):

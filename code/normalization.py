@@ -40,6 +40,7 @@ def calculate_normalization_coefficients(
                 target_history_lstm_value
             )
         ))
+
         other_history_lstm_value = value['other/history/lstm_data'][:, :, :agent_feature_count]
         total_ds['other/history/agent_features'] = np.vstack((
             total_ds['other/history/agent_features'],
@@ -57,6 +58,7 @@ def calculate_normalization_coefficients(
                 target_history_lstm_diff_value
             )
         ))
+
         other_history_lstm_diff_value = value['other/history/lstm_data_diff'][:, :, :agent_diff_feature_count]
         total_ds['other/history/agent_features_diff'] = np.vstack((
             total_ds['other/history/agent_features_diff'],
@@ -140,6 +142,10 @@ def main():
     )
 
     np.save(args.output_path, result)
+
+    # Save result as YAML
+    with open(args.output_path, 'w') as outfile:
+        yaml.dump(result, outfile, default_flow_style=False)
 
 
 if __name__ == "__main__":

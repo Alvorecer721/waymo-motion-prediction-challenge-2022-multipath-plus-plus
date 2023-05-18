@@ -3,6 +3,7 @@
 **/*.npz
 **/*.proto
 **/*.tar.gz
+**/*.DS_Store
 data/original/training/*
 data/original/testing/*
 data/original/validation/*
