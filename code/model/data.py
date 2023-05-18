@@ -12,7 +12,7 @@ def angle_to_range(yaw):
 
 def normalize(data, coefficients):
     means = coefficients['mean']
-    stds = coefficients['std']
+    stds  = coefficients['std']
 
     keys = [
         'target/history/lstm_data', 'target/history/lstm_data_diff',
@@ -22,26 +22,31 @@ def normalize(data, coefficients):
     ]
 
     for k in keys:
-        data[k] = (data[k] - means[k]) / (stds[k] + 1e-6)  # avoid divide by zero
+        data[k] = (data[k].cuda() - means[k].cuda()) / (stds[k].cuda() + 1e-6)  # avoid divide by zero
         data[k].clamp_(-15, 15)
+        data[k] = data[k].type(torch.float32)  # ensure the data type is float32
+                                               # otherwise sometime normalisation will cause the dtype to be float64
+                                               # which further cause error in the training process
 
-    data['target/history/lstm_data_diff'] *= data['target/history/valid_diff']
-    data['other/history/lstm_data_diff'] *= data['other/history/valid_diff']
-    data['target/history/lstm_data'] *= data['target/history/valid']
-    data['other/history/lstm_data'] *= data['other/history/valid']
+    data['target/history/lstm_data_diff'] *= data['target/history/valid_diff'].cuda()
+    data['other/history/lstm_data_diff'] *= data['other/history/valid_diff'].cuda()
+    data['target/history/lstm_data'] *= data['target/history/valid'].cuda()
+    data['other/history/lstm_data'] *= data['other/history/valid'].cuda()
     return data
 
 
 def normalize_future_xy(data, coefficients):
-    mean = torch.from_numpy(coefficients['mean']['target/future/xy']).cuda()
-    std = torch.from_numpy(coefficients['std']['target/future/xy']).cuda() + 1e-6
-    return (data["target/future/xy"] - mean) / std
+    mean = coefficients['mean']['target/future/xy'].cuda()
+    std = coefficients['std']['target/future/xy'].cuda() + 1e-6
+    normalized_data = (data.cuda() - mean) / std
+    return normalized_data.type(torch.float32)  # ensure the data type is float32
 
 
 def denormalize_future_xy(data, coefficients):
-    mean = torch.from_numpy(coefficients['mean']['target/future/xy']).cuda()
-    std = torch.from_numpy(coefficients['std']['target/future/xy']).cuda() + 1e-6
-    return data * std + mean
+    mean = coefficients['mean']['target/future/xy'].cuda()
+    std = coefficients['std']['target/future/xy'].cuda() + 1e-6
+    denormalized_data = data.cuda() * std + mean
+    return denormalized_data.type(torch.float32) # ensure the data type is float32
 
 
 def dict_to_cuda(d):
@@ -61,6 +66,16 @@ def dict_to_cuda(d):
         if not isinstance(v, torch.Tensor):
             continue
         d[k] = d[k].cuda()
+
+
+def to_cuda(dict_obj):
+    """Used for transferring one batch of data to GPU"""
+    for key, value in dict_obj.items():
+        if isinstance(value, dict):
+            to_cuda(value)
+        else:
+            if isinstance(value, (np.ndarray, list)):
+                dict_obj[key] = torch.tensor(value).cuda()
 
 
 class MultiPathPPDataset(Dataset):
