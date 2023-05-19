@@ -57,13 +57,10 @@ class NormalMLP(nn.Module):
         self._mlp = nn.ModuleList(modules)
 
     def forward(self, x):
-        tmp = []
         prev_x_shape = x.shape
         assert torch.isfinite(x).all()
-        tmp.append(x)
         for l in self._mlp:
             x = l(x)
-            tmp.append(x)
             assert torch.isfinite(x).all()
         return x
             

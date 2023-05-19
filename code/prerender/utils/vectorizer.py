@@ -78,7 +78,6 @@ class TargetAgentFilteringPolicy:
         n_timestamps = full_validity.shape[-1]
         n_valid_timestamps = full_validity.sum(axis=-1)
         return n_valid_timestamps[i] == n_timestamps and data["state/type"][i] == 2
-        # return np.ones_like(n_valid_timestamps) * (n_valid_timestamps == n_timestamps)
 
     def _get_interesting_and_fully_available_agents(self, data, i):
         interesting = self._get_only_interesting_agents(data, i)
