@@ -145,7 +145,7 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
 
 
     result = {
-        'scenario/id': np.array(scene_id),
+        'scenario/id': np.array(str(scene_id).encode('utf-8')),
         'state/id': np.empty(num_agents),
         'state/is_sdc': np.empty(num_agents),
         'state/type': np.empty(num_agents),
