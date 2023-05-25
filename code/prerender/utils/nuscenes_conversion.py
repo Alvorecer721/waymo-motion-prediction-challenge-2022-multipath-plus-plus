@@ -182,8 +182,8 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
         result['state/type'][agent_idx] = valid_record.category_to_type()
         result['state/tracks_to_predict'][agent_idx] = agent_idx
 
-        result['state/current/length'] = valid_record.length
-        result['state/current/width'] = valid_record.width
+        result['state/current/length'][agent_idx] = valid_record.length
+        result['state/current/width'][agent_idx] = valid_record.width
 
         result['state/past/x'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 0]
         result['state/past/y'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 1]
