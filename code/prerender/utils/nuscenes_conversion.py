@@ -282,7 +282,9 @@ def get_scene_roadgraph(nusc_map, scene_bbox, r, layers_of_interest):
     }
 
 
-def get_full_scene_data(nuscenes, config, scene_id, scene):
+def get_full_scene_data(nuscenes, config, scene_id):
+    scene = nuscenes.scene[scene_id]
+
     scene_samples_data = get_scene_samples_data(nuscenes, scene)
     agents_dict, scene_bbox = scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, config["current_timestep_idx"])
 
