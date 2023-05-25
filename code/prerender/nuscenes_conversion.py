@@ -5,7 +5,11 @@ from typing import Set
 
 from pyquaternion import Quaternion
 import numpy as np
+from numpy import linalg
 from nuscenes.eval.common.utils import quaternion_yaw
+
+
+TOTAL_TIMESTEPS_LIMIT = 39
 
 
 class WaymoAgentType(IntEnum):
@@ -21,13 +25,15 @@ class AgentRecord:
     x: float = -1
     y: float = -1
     yaw: float = -1
-    width: float = -1
     length: float = -1
+    width: float = -1
+    speed: float = -1
+    is_sdc: bool = False
     category: str = ''
     valid: bool = False
     attributes: Set[str] = field(default_factory=lambda: set())
 
-    def category_mapping(self):
+    def category_to_type(self):
         if self.category == '':
             return WaymoAgentType.UNSET
         if self.category.startswith('human.pedestrian'):
@@ -60,6 +66,7 @@ def get_agents_data(nuscenes, annotation_tokens):
         x, y = sample_annotation['translation'][:2]
         rotation_quaternion = Quaternion(sample_annotation['rotation'])
         width, length = sample_annotation['size'][:2]
+        speed = linalg.norm(nuscenes.box_velocity(sample_annotation_token))
 
         attributes = {nuscenes.get('attribute', attribute_token)['name'] for attribute_token in
                       sample_annotation['attribute_tokens']}
@@ -68,8 +75,9 @@ def get_agents_data(nuscenes, annotation_tokens):
             x=x,
             y=y,
             yaw=quaternion_yaw(rotation_quaternion),
-            width=width,
             length=length,
+            width=width,
+            speed=speed,
             category=sample_annotation['category_name'],
             valid=True,
             attributes=attributes,
@@ -96,20 +104,141 @@ def get_scenes_data(nuscenes):
     return scenes_data
 
 
-def scene_data_to_agents_timesteps_array(scene_samples_data):
-    timesteps_total = len(scene_samples_data)
-    agent_to_timestep_to_data = defaultdict(lambda: [AgentRecord()] * timesteps_total)
+def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_timestep_idx):
+    num_timesteps_total = min(TOTAL_TIMESTEPS_LIMIT, len(scene_samples_data))
+    scene_samples_data = scene_samples_data[:num_timesteps_total]
+
+    agent_to_timestep_to_data = defaultdict(lambda: [AgentRecord()] * num_timesteps_total)
 
     for timestep, agents_data in enumerate(scene_samples_data):
         for agent_id, agent_record in agents_data.items():
             agent_to_timestep_to_data[agent_id][timestep] = agent_record
 
-    agents_total = len(agent_to_timestep_to_data)
+    num_agents = len(agent_to_timestep_to_data)
 
-    result = np.empty((agents_total, timesteps_total, 7))
+    num_timesteps_history = current_timestep_idx
+    num_timesteps_future = num_timesteps_total - num_timesteps_history - 1
+
+    result = {
+        'scenario/id': scene_id,
+        'state/id': np.empty(num_agents),
+        'state/is_sdc': np.empty(num_agents),
+        'state/type': np.empty(num_agents),
+        'state/tracks_to_predict': np.empty(num_agents),
+
+        'state/current/length': np.empty((num_agents, 1)),
+        'state/current/width': np.empty((num_agents, 1)),
+
+        'state/past/x': np.empty((num_agents, num_timesteps_history)),
+        'state/past/y': np.empty((num_agents, num_timesteps_history)),
+        'state/past/bbox_yaw': np.empty((num_agents, num_timesteps_history)),
+        'state/past/speed': np.empty((num_agents, num_timesteps_history)),
+        'state/past/valid': np.empty((num_agents, num_timesteps_history)),
+
+        'state/current/x': np.empty((num_agents, 1)),
+        'state/current/y': np.empty((num_agents, 1)),
+        'state/current/bbox_yaw': np.empty((num_agents, 1)),
+        'state/current/speed': np.empty((num_agents, 1)),
+        'state/current/valid': np.empty((num_agents, 1)),
+
+        'state/future/x': np.empty((num_agents, num_timesteps_future)),
+        'state/future/y': np.empty((num_agents, num_timesteps_future)),
+        'state/future/bbox_yaw': np.empty((num_agents, num_timesteps_future)),
+        'state/future/speed': np.empty((num_agents, num_timesteps_future)),
+        'state/future/valid': np.empty((num_agents, num_timesteps_future)),
+    }
 
     for agent_idx, (agent_id, agent_records) in enumerate(agent_to_timestep_to_data.items()):
-        agent_records_tupled = [agent_record.get_as_tuple() for agent_record in agent_records]
-        result[agent_idx] = np.array(agent_records_tupled)
+        result['state/id'][agent_idx] = agent_idx
+
+        valid_record = next((record for record in agent_records if record.valid))
+
+        result['state/is_sdc'][agent_idx] = valid_record.is_sdc
+        result['state/type'][agent_idx] = valid_record.category_to_type()
+        result['state/tracks_to_predict'][agent_idx] = agent_idx
+
+        result['state/current/length'] = valid_record.length
+        result['state/current/width'] = valid_record.width
+
+        result['state/past/x'][agent_idx] = np.array([record.x for record in agent_idx[:num_timesteps_history]])
+        result['state/past/y'][agent_idx] = np.array([record.y for record in agent_idx[:num_timesteps_history]])
+        result['state/past/bbox_yaw'][agent_idx] = np.array([record.yaw for record in agent_idx[:num_timesteps_history]])
+        result['state/past/speed'][agent_idx] = np.array([record.speed for record in agent_idx[:num_timesteps_history]])
+        result['state/past/valid'][agent_idx] = np.array([record.valid for record in agent_idx[:num_timesteps_history]])
+
+        result['state/current/x'][agent_idx] = agent_records[current_timestep_idx].x
+        result['state/current/y'][agent_idx] = agent_records[current_timestep_idx].y
+        result['state/current/bbox_yaw'][agent_idx] = agent_records[current_timestep_idx].yaw
+        result['state/current/speed'][agent_idx] = agent_records[current_timestep_idx].speed
+        result['state/current/valid'][agent_idx] = agent_records[current_timestep_idx].valid
+
+        result['state/future/x'][agent_idx] = np.array([record.x for record in agent_idx[num_timesteps_future:]])
+        result['state/future/y'][agent_idx] = np.array([record.y for record in agent_idx[num_timesteps_future:]])
+        result['state/future/bbox_yaw'][agent_idx] = np.array([record.yaw for record in agent_idx[num_timesteps_future:]])
+        result['state/future/speed'][agent_idx] = np.array([record.speed for record in agent_idx[num_timesteps_future:]])
+        result['state/future/valid'][agent_idx] = np.array([record.valid for record in agent_idx[num_timesteps_future:]])
 
     return result
+
+
+class RoadgraphLayerType(IntEnum):
+    ROAD_SEGMENT = 0
+    ROAD_BLOCK = 1
+    LANE = 2
+    PED_CROSSING = 3
+    WALKWAY = 4
+    STOP_LINE = 5
+    CARPARK_AREA = 6
+    ROAD_DIVIDER = 7
+    LANE_DIVIDER = 8
+
+
+def roadgraph_layer_string_to_enum(layer):
+    if layer == 'road_segment':
+        return RoadgraphLayerType.ROAD_SEGMENT
+    if layer == 'road_block':
+        return RoadgraphLayerType.ROAD_BLOCK
+    if layer == 'lane':
+        return RoadgraphLayerType.LANE
+    if layer == 'ped_crossing':
+        return RoadgraphLayerType.PED_CROSSING
+    if layer == 'walkway':
+        return RoadgraphLayerType.WALKWAY
+    if layer == 'stop_line':
+        return RoadgraphLayerType.STOP_LINE
+    if layer == 'carpark_area':
+        return RoadgraphLayerType.CARPARK_AREA
+    if layer == 'road_divider':
+        return RoadgraphLayerType.ROAD_DIVIDER
+    if layer == 'lane_divider':
+        return RoadgraphLayerType.LANE_DIVIDER
+    raise RuntimeError(f'Unknown layer: {layer}')
+
+
+def get_scene_roadgraph(nusc_map, x_min, y_min, x_max, y_max, R):
+    x_max, y_max = x_max + R, y_max + R
+    x_min, y_min = x_min - R, y_min - R
+
+    node_coordinates = []
+    node_object_ids = []
+    node_types = []
+
+    for layer_name, layer_object_tokens in nusc_map.get_records_in_patch((x_min, y_min, x_max, y_max),
+                                                                         layer_names=layers_of_interest).items():
+        for object_token in layer_object_tokens:
+            layer_objects = nusc_map.get(layer_name, object_token)
+
+            node_tokens = layer_objects.get('exterior_node_tokens', []) + layer_objects.get('node_tokens', [])
+            for node_token in node_tokens:
+                node_data = nusc_map.get('node', node_token)
+                x, y = node_data['x'], node_data['y']
+
+                node_coordinates.append((x, y))
+                node_object_ids.append(object_token)
+                node_types.append(int(roadgraph_layer_string_to_enum(layer_name)))
+
+    return {
+        'roadgraph_samples/xyz': np.array(node_coordinates),
+        'roadgraph_samples/id': np.array(node_object_ids),
+        'roadgraph_samples/type': np.array(node_types)
+    }
