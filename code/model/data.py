@@ -36,15 +36,15 @@ def normalize(data, coefficients):
 
 
 def normalize_future_xy(data, coefficients):
-    mean = coefficients['mean']['target/future/xy'].cuda()
-    std = coefficients['std']['target/future/xy'].cuda() + 1e-6
+    mean = coefficients['mean']['target/history/xy'].cuda()
+    std = coefficients['std']['target/history/xy'].cuda() + 1e-6
     normalized_data = (data.cuda() - mean) / std
     return normalized_data.type(torch.float32)  # ensure the data type is float32
 
 
 def denormalize_future_xy(data, coefficients):
-    mean = coefficients['mean']['target/future/xy'].cuda()
-    std = coefficients['std']['target/future/xy'].cuda() + 1e-6
+    mean = coefficients['mean']['target/history/xy'].cuda()
+    std = coefficients['std']['target/history/xy'].cuda() + 1e-6
     denormalized_data = data.cuda() * std + mean
     return denormalized_data.type(torch.float32) # ensure the data type is float32
 
