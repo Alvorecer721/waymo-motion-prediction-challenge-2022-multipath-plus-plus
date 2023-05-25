@@ -18,6 +18,9 @@ def data_to_numpy(data):
 
 
 def filter_valid(item, valid_array):
+    """
+    length of valid_array is 128 (number of agent), filtered agents which have no valid state at all
+    """
     return item[valid_array.flatten() > 0]
 
 
@@ -30,9 +33,8 @@ def get_filter_valid_roadnetwork_keys():
 
 def get_filter_valid_anget_history():
     result = []
-    key_with_different_timezones = ["x", "y", "speed", "bbox_yaw", "valid"]
-    common_keys = [
-        "state/id", "state/is_sdc", "state/type", "state/current/width", "state/current/length"]
+    key_with_different_timezones = ["x", "y", "velocity_x", "velocity_y", "speed", "bbox_yaw", "valid", "length", "width"]
+    common_keys = ["state/id", "state/is_sdc", "state/type"] # , "state/current/width", "state/current/length"
     for key in key_with_different_timezones:
         for zone in ["past", "current", "future"]:
             result.append(f"state/{zone}/{key}")
