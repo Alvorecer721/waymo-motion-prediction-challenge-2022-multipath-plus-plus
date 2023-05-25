@@ -1,6 +1,6 @@
 from tqdm import tqdm
 from utils.prerender_utils import get_visualizers, merge_and_save
-from utils.nuscenes_conversion import get_scene_samples_data, scene_data_to_agents_timesteps_dict, get_scene_map, get_scene_roadgraph
+from utils.nuscenes_conversion import get_full_scene_data
 from utils.utils import get_config
 from nuscenes import NuScenes
 import argparse
@@ -19,14 +19,8 @@ def main():
     visualizers = get_visualizers(config["renderers"])
 
     for scene_id, scene in enumerate(tqdm(nuscenes.scene)):
-        scene_samples_data = get_scene_samples_data(nuscenes, scene)
-        agents_dict, scene_bbox = scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, config["current_timestep_idx"])
-
-        scene_map = get_scene_map(nuscenes, scene)
-        roadgraph_dict = get_scene_roadgraph(scene_map, scene_bbox, config["map_expansion_radius"], config["layers_of_interest"])
-
-        agents_dict.update(roadgraph_dict)
-        merge_and_save(visualizers=visualizers, data=agents_dict, output_path=args.output_path, is_nuscenes=True)
+        data = get_full_scene_data(nuscenes, config, scene_id, scene)
+        merge_and_save(visualizers=visualizers, data=data, output_path=args.output_path, is_nuscenes=True)
 
 
 if __name__ == "__main__":

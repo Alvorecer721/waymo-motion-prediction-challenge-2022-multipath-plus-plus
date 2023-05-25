@@ -280,3 +280,16 @@ def get_scene_roadgraph(nusc_map, scene_bbox, r, layers_of_interest):
         'roadgraph_samples/id': np.array(node_object_ids),
         'roadgraph_samples/type': np.array(node_types)
     }
+
+
+def get_full_scene_data(nuscenes, config, scene_id, scene):
+    scene_samples_data = get_scene_samples_data(nuscenes, scene)
+    agents_dict, scene_bbox = scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, config["current_timestep_idx"])
+
+    scene_map = get_scene_map(nuscenes, scene)
+    roadgraph_dict = get_scene_roadgraph(scene_map, scene_bbox, config["map_expansion_radius"],
+                                         config["layers_of_interest"])
+
+    agents_dict.update(roadgraph_dict)
+
+    return agents_dict
