@@ -278,7 +278,8 @@ def get_scene_roadgraph(nusc_map, scene_bbox, r, layers_of_interest):
     return {
         'roadgraph_samples/xyz': np.array(node_coordinates),
         'roadgraph_samples/id': np.array(node_object_ids),
-        'roadgraph_samples/type': np.array(node_types)
+        'roadgraph_samples/type': np.array(node_types),
+        'roadgraph_samples/valid': np.ones(len(node_coordinates)),
     }
 
 
