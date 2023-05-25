@@ -7,6 +7,7 @@ from pyquaternion import Quaternion
 import numpy as np
 from numpy import linalg
 from nuscenes.eval.common.utils import quaternion_yaw
+from nuscenes.map_expansion.map_api import NuScenesMap
 
 
 TOTAL_TIMESTEPS_LIMIT = 39
@@ -104,6 +105,23 @@ def get_scenes_data(nuscenes):
     return scenes_data
 
 
+@dataclass
+class SceneBoundingBox:
+    x_min: float = -1
+    y_min: float = -1
+    x_max: float = -1
+    y_max: float = -1
+
+    def extend_by_radius(self, r):
+        self.x_min -= r
+        self.y_min -= r
+        self.x_max += r
+        self.y_max += r
+
+    def as_patch(self):
+        return self.x_min, self.y_min, self.x_max, self.y_max
+
+
 def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_timestep_idx):
     num_timesteps_total = min(TOTAL_TIMESTEPS_LIMIT, len(scene_samples_data))
     scene_samples_data = scene_samples_data[:num_timesteps_total]
@@ -123,6 +141,7 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
     for agent_idx, (agent_id, agent_records) in enumerate(agent_to_timestep_to_data.items()):
         agent_records_core = [agent_record.get_core_tuple() for agent_record in agent_records]
         core_data_array[agent_idx] = np.array(agent_records_core)
+
 
 
     result = {
@@ -184,7 +203,17 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
         result['state/future/speed'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 3]
         result['state/future/valid'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 4]
 
-    return result
+    x_min, y_min = core_data_array[:, :, :2].min(axis=(0, 1))
+    x_max, y_max = core_data_array[:, :, :2].max(axis=(0, 1))
+
+    scene_bounding_box = SceneBoundingBox(
+        x_min=x_min,
+        y_min=y_min,
+        x_max=x_max,
+        y_max=y_max,
+    )
+
+    return result, scene_bounding_box
 
 
 class RoadgraphLayerType(IntEnum):
@@ -221,16 +250,19 @@ def roadgraph_layer_string_to_enum(layer):
     raise RuntimeError(f'Unknown layer: {layer}')
 
 
-def get_scene_roadgraph(nusc_map, x_min, y_min, x_max, y_max, R):
-    x_max, y_max = x_max + R, y_max + R
-    x_min, y_min = x_min - R, y_min - R
+def get_scene_map(nuscenes, scene):
+    scene_location = nuscenes.get('log', scene['log_token'])['location']
+    return NuScenesMap(dataroot=nuscenes.dataroot, map_name=scene_location)
+
+
+def get_scene_roadgraph(nusc_map, scene_bbox, r, layers_of_interest):
+    scene_bbox.extend_by_radius(r)
 
     node_coordinates = []
     node_object_ids = []
     node_types = []
 
-    for layer_name, layer_object_tokens in nusc_map.get_records_in_patch((x_min, y_min, x_max, y_max),
-                                                                         layer_names=layers_of_interest).items():
+    for layer_name, layer_object_tokens in nusc_map.get_records_in_patch(scene_bbox.as_patch(), layer_names=layers_of_interest).items():
         for object_token in layer_object_tokens:
             layer_objects = nusc_map.get(layer_name, object_token)
 

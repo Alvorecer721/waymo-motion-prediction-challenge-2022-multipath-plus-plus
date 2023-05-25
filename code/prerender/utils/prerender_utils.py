@@ -50,8 +50,9 @@ def generate_filename(scene_data):
     return f"scid_{scenario_id}__aid_{agent_id}__atype_{agent_type.item()}.npz"
 
 
-def merge_and_save(visualizers, data, output_path):
-    data_to_numpy(data)
+def merge_and_save(visualizers, data, output_path, is_nuscenes=False):
+    if not is_nuscenes:
+        data_to_numpy(data)
     preprocessed_dicts = [visualizer.render(data) for visualizer in visualizers]
     for scene_number in range(len(preprocessed_dicts[0])):
         scene_data = {}
