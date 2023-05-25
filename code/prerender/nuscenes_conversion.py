@@ -44,8 +44,8 @@ class AgentRecord:
             return WaymoAgentType.VEHICLE
         return WaymoAgentType.OTHER
 
-    def get_as_tuple(self):
-        return self.x, self.y, self.yaw, self.width, self.length, int(self.category_mapping()), self.valid
+    def get_core_tuple(self):
+        return self.x, self.y, self.yaw, self.speed, self.valid
 
 
 def get_annotation_tokens_by_sample(nuscenes, scene):
@@ -119,6 +119,12 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
     num_timesteps_history = current_timestep_idx
     num_timesteps_future = num_timesteps_total - num_timesteps_history - 1
 
+    core_data_array = np.empty((num_agents, num_timesteps_total, 5))
+    for agent_idx, (agent_id, agent_records) in enumerate(agent_to_timestep_to_data.items()):
+        agent_records_core = [agent_record.get_core_tuple() for agent_record in agent_records]
+        core_data_array[agent_idx] = np.array(agent_records_core)
+
+
     result = {
         'scenario/id': scene_id,
         'state/id': np.empty(num_agents),
@@ -160,23 +166,23 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
         result['state/current/length'] = valid_record.length
         result['state/current/width'] = valid_record.width
 
-        result['state/past/x'][agent_idx] = np.array([record.x for record in agent_idx[:num_timesteps_history]])
-        result['state/past/y'][agent_idx] = np.array([record.y for record in agent_idx[:num_timesteps_history]])
-        result['state/past/bbox_yaw'][agent_idx] = np.array([record.yaw for record in agent_idx[:num_timesteps_history]])
-        result['state/past/speed'][agent_idx] = np.array([record.speed for record in agent_idx[:num_timesteps_history]])
-        result['state/past/valid'][agent_idx] = np.array([record.valid for record in agent_idx[:num_timesteps_history]])
+        result['state/past/x'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 0]
+        result['state/past/y'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 1]
+        result['state/past/bbox_yaw'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 2]
+        result['state/past/speed'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 3]
+        result['state/past/valid'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 4]
 
-        result['state/current/x'][agent_idx] = agent_records[current_timestep_idx].x
-        result['state/current/y'][agent_idx] = agent_records[current_timestep_idx].y
-        result['state/current/bbox_yaw'][agent_idx] = agent_records[current_timestep_idx].yaw
-        result['state/current/speed'][agent_idx] = agent_records[current_timestep_idx].speed
-        result['state/current/valid'][agent_idx] = agent_records[current_timestep_idx].valid
+        result['state/current/x'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 0]
+        result['state/current/y'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 1]
+        result['state/current/bbox_yaw'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 2]
+        result['state/current/speed'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 3]
+        result['state/current/valid'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 4]
 
-        result['state/future/x'][agent_idx] = np.array([record.x for record in agent_idx[num_timesteps_future:]])
-        result['state/future/y'][agent_idx] = np.array([record.y for record in agent_idx[num_timesteps_future:]])
-        result['state/future/bbox_yaw'][agent_idx] = np.array([record.yaw for record in agent_idx[num_timesteps_future:]])
-        result['state/future/speed'][agent_idx] = np.array([record.speed for record in agent_idx[num_timesteps_future:]])
-        result['state/future/valid'][agent_idx] = np.array([record.valid for record in agent_idx[num_timesteps_future:]])
+        result['state/future/x'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 0]
+        result['state/future/y'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 1]
+        result['state/future/bbox_yaw'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 2]
+        result['state/future/speed'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 3]
+        result['state/future/valid'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 4]
 
     return result
 
