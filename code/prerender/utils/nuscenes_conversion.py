@@ -28,6 +28,8 @@ class AgentRecord:
     yaw: float = -1
     length: float = -1
     width: float = -1
+    velocity_x: float = -1
+    velocity_y: float = -1
     speed: float = -1
     is_sdc: bool = False
     category: str = ''
@@ -46,7 +48,7 @@ class AgentRecord:
         return WaymoAgentType.OTHER
 
     def get_core_tuple(self):
-        return self.x, self.y, self.yaw, self.speed, self.valid
+        return self.x, self.y, self.yaw, self.speed, self.valid, self.length, self.width, self.velocity_x, self.velocity_y
 
 
 def get_annotation_tokens_by_sample(nuscenes, scene):
@@ -67,7 +69,9 @@ def get_agents_data(nuscenes, annotation_tokens):
         x, y = sample_annotation['translation'][:2]
         rotation_quaternion = Quaternion(sample_annotation['rotation'])
         width, length = sample_annotation['size'][:2]
-        speed = linalg.norm(nuscenes.box_velocity(sample_annotation_token))
+        velocity_vector = nuscenes.box_velocity(sample_annotation_token)
+        velocity_x, velocity_y = velocity_vector[:2]
+        speed = linalg.norm(velocity_vector)
 
         attributes = {nuscenes.get('attribute', attribute_token)['name'] for attribute_token in
                       sample_annotation['attribute_tokens']}
@@ -78,6 +82,8 @@ def get_agents_data(nuscenes, annotation_tokens):
             yaw=quaternion_yaw(rotation_quaternion),
             length=length,
             width=width,
+            velocity_x=velocity_x,
+            velocity_y=velocity_y,
             speed=speed,
             category=sample_annotation['category_name'],
             valid=True,
@@ -137,11 +143,10 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
     num_timesteps_history = current_timestep_idx
     num_timesteps_future = num_timesteps_total - num_timesteps_history - 1
 
-    core_data_array = np.empty((num_agents, num_timesteps_total, 5))
+    core_data_array = np.empty((num_agents, num_timesteps_total, 9))
     for agent_idx, (agent_id, agent_records) in enumerate(agent_to_timestep_to_data.items()):
         agent_records_core = [agent_record.get_core_tuple() for agent_record in agent_records]
         core_data_array[agent_idx] = np.array(agent_records_core)
-
 
 
     result = {
@@ -151,26 +156,35 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
         'state/type': np.empty(num_agents),
         'state/tracks_to_predict': np.empty(num_agents),
 
-        'state/current/length': np.empty((num_agents, 1)),
-        'state/current/width': np.empty((num_agents, 1)),
-
         'state/past/x': np.empty((num_agents, num_timesteps_history)),
         'state/past/y': np.empty((num_agents, num_timesteps_history)),
         'state/past/bbox_yaw': np.empty((num_agents, num_timesteps_history)),
         'state/past/speed': np.empty((num_agents, num_timesteps_history)),
         'state/past/valid': np.empty((num_agents, num_timesteps_history)),
+        'state/past/length': np.empty((num_agents, num_timesteps_history)),
+        'state/past/width': np.empty((num_agents, num_timesteps_history)),
+        'state/past/velocity_x': np.empty((num_agents, num_timesteps_history)),
+        'state/past/velocity_y': np.empty((num_agents, num_timesteps_history)),
 
         'state/current/x': np.empty((num_agents, 1)),
         'state/current/y': np.empty((num_agents, 1)),
         'state/current/bbox_yaw': np.empty((num_agents, 1)),
         'state/current/speed': np.empty((num_agents, 1)),
         'state/current/valid': np.empty((num_agents, 1)),
+        'state/current/length': np.empty((num_agents, 1)),
+        'state/current/width': np.empty((num_agents, 1)),
+        'state/current/velocity_x': np.empty((num_agents, 1)),
+        'state/current/velocity_y': np.empty((num_agents, 1)),
 
         'state/future/x': np.empty((num_agents, num_timesteps_future)),
         'state/future/y': np.empty((num_agents, num_timesteps_future)),
         'state/future/bbox_yaw': np.empty((num_agents, num_timesteps_future)),
         'state/future/speed': np.empty((num_agents, num_timesteps_future)),
         'state/future/valid': np.empty((num_agents, num_timesteps_future)),
+        'state/future/length': np.empty((num_agents, num_timesteps_future)),
+        'state/future/width': np.empty((num_agents, num_timesteps_future)),
+        'state/future/velocity_x': np.empty((num_agents, num_timesteps_future)),
+        'state/future/velocity_y': np.empty((num_agents, num_timesteps_future)),
     }
 
     for agent_idx, (agent_id, agent_records) in enumerate(agent_to_timestep_to_data.items()):
@@ -182,26 +196,35 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
         result['state/type'][agent_idx] = valid_record.category_to_type()
         result['state/tracks_to_predict'][agent_idx] = agent_idx
 
-        result['state/current/length'][agent_idx] = valid_record.length
-        result['state/current/width'][agent_idx] = valid_record.width
-
         result['state/past/x'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 0]
         result['state/past/y'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 1]
         result['state/past/bbox_yaw'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 2]
         result['state/past/speed'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 3]
         result['state/past/valid'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 4]
+        result['state/past/length'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 5]
+        result['state/past/width'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 6]
+        result['state/past/velocity_x'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 7]
+        result['state/past/velocity_y'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 8]
 
         result['state/current/x'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 0]
         result['state/current/y'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 1]
         result['state/current/bbox_yaw'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 2]
         result['state/current/speed'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 3]
         result['state/current/valid'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 4]
+        result['state/current/length'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 5]
+        result['state/current/width'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 6]
+        result['state/current/velocity_x'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 7]
+        result['state/current/velocity_y'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 8]
 
         result['state/future/x'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 0]
         result['state/future/y'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 1]
         result['state/future/bbox_yaw'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 2]
         result['state/future/speed'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 3]
         result['state/future/valid'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 4]
+        result['state/future/length'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 5]
+        result['state/future/width'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 6]
+        result['state/future/velocity_x'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 7]
+        result['state/future/velocity_y'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 8]
 
     x_min, y_min = core_data_array[:, :, :2].min(axis=(0, 1))
     x_max, y_max = core_data_array[:, :, :2].max(axis=(0, 1))
