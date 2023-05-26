@@ -163,6 +163,8 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
         'state/past/valid': np.empty((num_agents, num_timesteps_history)),
         'state/past/length': np.empty((num_agents, num_timesteps_history)),
         'state/past/width': np.empty((num_agents, num_timesteps_history)),
+        'state/past/velocity_x': np.empty((num_agents, num_timesteps_history)),
+        'state/past/velocity_y': np.empty((num_agents, num_timesteps_history)),
 
         'state/current/x': np.empty((num_agents, 1)),
         'state/current/y': np.empty((num_agents, 1)),
@@ -171,6 +173,8 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
         'state/current/valid': np.empty((num_agents, 1)),
         'state/current/length': np.empty((num_agents, 1)),
         'state/current/width': np.empty((num_agents, 1)),
+        'state/current/velocity_x': np.empty((num_agents, 1)),
+        'state/current/velocity_y': np.empty((num_agents, 1)),
 
         'state/future/x': np.empty((num_agents, num_timesteps_future)),
         'state/future/y': np.empty((num_agents, num_timesteps_future)),
@@ -179,6 +183,8 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
         'state/future/valid': np.empty((num_agents, num_timesteps_future)),
         'state/future/length': np.empty((num_agents, num_timesteps_future)),
         'state/future/width': np.empty((num_agents, num_timesteps_future)),
+        'state/future/velocity_x': np.empty((num_agents, num_timesteps_future)),
+        'state/future/velocity_y': np.empty((num_agents, num_timesteps_future)),
     }
 
     for agent_idx, (agent_id, agent_records) in enumerate(agent_to_timestep_to_data.items()):
