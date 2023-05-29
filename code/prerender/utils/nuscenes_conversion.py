@@ -133,8 +133,8 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
 
     agent_to_timestep_to_data = defaultdict(lambda: [AgentRecord()] * num_timesteps_total)
     for timestep in range(num_timesteps_total):
-        for agent_idx, (agent_id, agent_record) in enumerate(scene_samples_data[timestep].items()):
-            agent_to_timestep_to_data[agent_idx][timestep] = agent_record
+        for agent_id, agent_record in scene_samples_data[timestep].items():
+            agent_to_timestep_to_data[agent_id][timestep] = agent_record
 
     num_agents = len(agent_to_timestep_to_data)
 
@@ -179,7 +179,7 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
         'state/future/velocity_y': np.empty((num_agents, num_timesteps_future)),
     }
 
-    for agent_idx, agent_records in agent_to_timestep_to_data.items():
+    for agent_idx, (agent_id, agent_records) in enumerate(agent_to_timestep_to_data.items()):
         result['state/id'][agent_idx] = agent_idx
 
         valid_record = next((record for record in agent_records if record.valid))
