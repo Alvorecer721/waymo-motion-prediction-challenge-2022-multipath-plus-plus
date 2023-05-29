@@ -48,7 +48,7 @@ class AgentRecord:
         return WaymoAgentType.OTHER
 
     def get_core_tuple(self):
-        return self.x, self.y, self.yaw, self.speed, self.valid, self.length, self.width, self.velocity_x, self.velocity_y
+        return self.x, self.y, self.yaw, self.speed, float(self.valid), self.length, self.width, self.velocity_x, self.velocity_y
 
 
 def get_annotation_tokens_by_sample(nuscenes, scene):
