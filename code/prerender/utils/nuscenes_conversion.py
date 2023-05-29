@@ -186,7 +186,7 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
 
         result['state/is_sdc'][agent_idx] = valid_record.is_sdc
         result['state/type'][agent_idx] = valid_record.category_to_type()
-        result['state/tracks_to_predict'][agent_idx] = agent_idx
+        result['state/tracks_to_predict'][agent_idx] = agent_idx if agent_records[current_timestep_idx].valid else 0.0
 
         agent_records_core = np.fromiter(
             (agent_record.get_core_tuple() for agent_record in agent_records),
