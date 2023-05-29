@@ -99,17 +99,19 @@ class MultiPathPPDataset(Dataset):
         data["other/history/yaw_cos"] = np.cos(data["other/history/yaw"])
         return data
 
-    def _add_length_width(self, data):
-        data["target/history/length"] = \
-            data["target/length"].reshape(-1, 1, 1) * np.ones_like(data["target/history/yaw"])
-        data["target/history/width"] = \
-            data["target/width"].reshape(-1, 1, 1) * np.ones_like(data["target/history/yaw"])
-
-        data["other/history/length"] = \
-            data["other/length"].reshape(-1, 1, 1) * np.ones_like(data["other/history/yaw"])
-        data["other/history/width"] = \
-            data["other/width"].reshape(-1, 1, 1) * np.ones_like(data["other/history/yaw"])
-        return data
+    # def _add_length_width(self, data):
+    #     """Look, this genius is duplicating the length and width of the current state to make past length and width of the past state"""
+    #     data["target/history/length"] = \
+    #         data["target/length"].reshape(-1, 1, 1) * np.ones_like(data["target/history/yaw"])
+    #     data["target/history/width"] = \
+    #         data["target/width"].reshape(-1, 1, 1) * np.ones_like(data["target/history/yaw"])
+    #
+    #     data["other/history/length"] = \
+    #         data["other/length"].reshape(-1, 1, 1) * np.ones_like(data["other/history/yaw"])
+    #     data["other/history/width"] = \
+    #         data["other/width"].reshape(-1, 1, 1) * np.ones_like(data["other/history/yaw"])
+    #
+    #     return data
 
     def _compute_agent_diff_features(self, data):
         diff_keys = ["target/history/xy", "target/history/yaw", "target/history/speed",
@@ -177,7 +179,6 @@ class MultiPathPPDataset(Dataset):
         np_data["target/history/yaw"] = angle_to_range(np_data["target/history/yaw"])
         np_data["other/history/yaw"] = angle_to_range(np_data["other/history/yaw"])
         np_data = self._generate_sin_cos(np_data)
-        np_data = self._add_length_width(np_data)
         if self._config["mask_history"]:
             for subject in ["target", "other"]:
                 np_data[f"{subject}/history/valid"] = self._mask_history(
@@ -262,6 +263,8 @@ if __name__ == "__main__":
             "/Users/xuyixuan/Downloads/Project/waymo-motion-prediction-challenge-2022-multipath-plus-plus/code/configs/final_RoP_Cov_Single.yaml",
             'r') as stream:
         config = yaml.load(stream, Loader)
+
+    config["train"]["data_config"]["dataset_config"]["data_path"] = '/Users/xuyixuan/Downloads/Project/waymo-motion-prediction-challenge-2022-multipath-plus-plus/dataset/train_pre_rendered_new'
 
     dataset = MultiPathPPDataset(config["train"]["data_config"]["dataset_config"])
 

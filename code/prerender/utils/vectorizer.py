@@ -109,7 +109,16 @@ class MultiPathPPRenderer(Renderer):
         self._target_agent_filter = TargetAgentFilteringPolicy(self._config["agent_filtering"])
 
     def _select_agents_with_any_validity(self, data):
-        """filter agents that have at least one valid timestamp in their state history (past, current, or future)"""
+        """
+        filter agents that have at least one valid timestamp in their state history (past, current, or future)
+
+        data["state/current/valid"]: 128 agents, 1 indicator (0/1) representing whether the current state is valid
+        data["state/future/valid"]: 128 agents, 80 indicator for each of the future states
+        data["state/past/valid"]: 128 agents, 10 indicator for each of the past states
+
+        Return: For each agent from the 128 agent, how many valid state do each of them have?
+        """
+
         return data["state/current/valid"].sum(axis=-1) + \
             data["state/future/valid"].sum(axis=-1) + data["state/past/valid"].sum(axis=-1)
 
@@ -198,12 +207,12 @@ class MultiPathPPRenderer(Renderer):
             [data["state/future/x"], data["state/future/y"]]).transpose(1, 2, 0)
 
         # (n_agents, 11, 1)
-        for key in ["speed", "bbox_yaw", "valid"]:
+        for key in ["speed", "bbox_yaw", "velocity_x", "velocity_y", "valid", "width", "length"]:  # IMPORTANT: we add velocity_x and velocity_y
             preprocessed_data[f"history/{key}"], preprocessed_data[f"future/{key}"] = \
                 self._split_past_and_future(data, key)
 
-        for key in ["state/id", "state/is_sdc", "state/type", "state/current/width",
-                    "state/current/length"]:
+        # Deal with scalar values
+        for key in ["state/id", "state/is_sdc", "state/type"]: # , "state/current/width", "state/current/length"
             # key.split('/')[-1] = id, is_sdc, type, width, length
             preprocessed_data[key.split('/')[-1]] = data[key]
         preprocessed_data["scenario_id"] = data["scenario/id"]
@@ -279,10 +288,9 @@ class MultiPathPPRenderer(Renderer):
         segment_end_minus_r_norm = np.linalg.norm(
             segments[:, 1, :] - closest_points, axis=-1, keepdims=True)
 
-        # TODO: I made a modification here, but I am not sure if this is correct
+        ############## IMPORTANT: FIX A BUG HERE ################
         # segment_type_ohe = np.eye(self.n_segment_types)[types]
-        segment_type_ohe = np.eye(self.n_segment_types)[types-1]
-
+        segment_type_ohe = np.eye(self.n_segment_types)[types - 1]
 
         # Concatenate all the computed features to form the final embedding
         resulting_embeddings = np.concatenate([
@@ -291,6 +299,9 @@ class MultiPathPPRenderer(Renderer):
         return resulting_embeddings[:, None, :]
 
     def _split_target_agent_and_other_agents(self, tensor, i, key):
+        """
+        For each valid agent, we make a sample, where this agent is the target agent and all other agents are the other agents
+        """
         target_data = tensor[i][None,]
         other_data = np.delete(tensor, i, axis=0)
         return target_data, other_data
@@ -378,7 +389,10 @@ class MultiPathPPRenderer(Renderer):
         self._preprocess_data(data)
         road_network_info = self._prepare_roadnetwork_info(data)
         agent_history_info = self._prepare_agent_history(data)
-        for i in range(agent_history_info["history/xy"].shape[0]):
+
+        # improve readability
+        num_valid_agents = agent_history_info["history/valid"].shape[0]
+        for i in range(num_valid_agents):
             if not self._target_agent_filter.allow(data, i):
                 continue
             current_agent_scene_shift = agent_history_info["history/xy"][i][-1]
@@ -390,8 +404,8 @@ class MultiPathPPRenderer(Renderer):
                 current_agent_scene_yaw
             )
             current_scene_road_network_coordinates, current_scene_road_network_types = self._filter_closest_segments(
-                    current_scene_road_network_coordinates,
-                    road_network_info["segment_types"]
+                current_scene_road_network_coordinates,
+                road_network_info["segment_types"]
             )
 
             road_segments_embeddings = self._generate_segment_embeddings(
@@ -426,6 +440,54 @@ class MultiPathPPRenderer(Renderer):
                 agent_history_info["history/speed"], i, "speed"
             )
 
+
+            ##################### what we add #####################
+            """
+            To add additional feature for a target agent, we need to do the following things:
+            1. In _prepare_agent_history: add the corresponding feature, so that the data is processed into past (including current) and future,
+               and is stored in agent_history_info.
+            2. In the code below, split future and past data into target agent and other agents.
+            3. Add the split data into scene_data to be returned.
+            """
+
+            ###### For velocity, since it is not involved in generating any embeddings, we don't care about other agents ######
+            (current_scene_target_agent_velocity_x_future, _) = self._split_target_agent_and_other_agents(
+                agent_history_info["future/velocity_x"], i, "velocity_x"
+            )
+
+            (current_scene_target_agent_velocity_x_history, _) = self._split_target_agent_and_other_agents(
+                agent_history_info["history/velocity_x"], i, "velocity_x"
+            )
+
+            (current_scene_target_agent_velocity_y_future, _) = self._split_target_agent_and_other_agents(
+                agent_history_info["future/velocity_y"], i, "velocity_y"
+            )
+
+            (current_scene_target_agent_velocity_y_history, _) = self._split_target_agent_and_other_agents(
+                agent_history_info["history/velocity_y"], i, "velocity_y"
+            )
+
+            ###### For length and width, since it is not involved encoding, we need to add both target and agent ######
+            (current_scene_target_agent_width_future,
+             current_scene_other_agents_width_future) = self._split_target_agent_and_other_agents(
+                agent_history_info["future/width"], i, "width"
+            )
+
+            (current_scene_target_agent_length_future,
+             current_scene_other_agents_length_future) = self._split_target_agent_and_other_agents(
+                agent_history_info["future/length"], i, "length"
+            )
+
+            (current_scene_target_agent_width_history,
+             current_scene_other_agents_width_history) = self._split_target_agent_and_other_agents(
+                agent_history_info["history/width"], i, "width"
+            )
+
+            (current_scene_target_agent_length_history,
+             current_scene_other_agents_length_history) = self._split_target_agent_and_other_agents(
+                agent_history_info["history/length"], i, "length"
+            )
+
             scene_data = {
                 "shift": current_agent_scene_shift[None,],
                 "yaw": current_agent_scene_yaw,
@@ -438,10 +500,10 @@ class MultiPathPPRenderer(Renderer):
                 "target/is_sdc": np.array(int(agent_history_info["is_sdc"][i])).reshape(1),
                 "other/is_sdc": np.delete(agent_history_info["is_sdc"], i, axis=0).astype(int),
 
-                "target/width": agent_history_info["width"][i].item(),
-                "target/length": agent_history_info["length"][i].item(),
-                "other/width": np.delete(agent_history_info["width"], i),
-                "other/length": np.delete(agent_history_info["length"], i),
+                # "target/width": agent_history_info["width"][i].item(),
+                # "target/length": agent_history_info["length"][i].item(),
+                # "other/width": np.delete(agent_history_info["width"], i),
+                # "other/length": np.delete(agent_history_info["length"], i),
 
                 "target/future/xy": current_scene_agents_coordinates_future[i][None,],
                 "target/future/yaw": current_scene_agents_yaws_future[i][None,],
@@ -462,8 +524,68 @@ class MultiPathPPRenderer(Renderer):
                 "other/history/valid": np.delete(agent_history_info["history/valid"], i, axis=0),
 
                 "road_network_embeddings": road_segments_embeddings,
-                "road_network_segments": current_scene_road_network_coordinates
+                "road_network_segments": current_scene_road_network_coordinates,
+
+                # IMPORTANT: we add the following data for as required by waymo evaluation script
+                # we don't care about other agents for velocity
+                "target/future/velocity_x": current_scene_target_agent_velocity_x_future,
+                "target/future/velocity_y": current_scene_target_agent_velocity_y_future,
+                "target/history/velocity_x": current_scene_target_agent_velocity_x_history,
+                "target/history/velocity_y": current_scene_target_agent_velocity_y_history,
+
+                "target/future/width": current_scene_target_agent_width_future,
+                "target/future/length": current_scene_target_agent_length_future,
+                "other/future/width": current_scene_other_agents_width_future,
+                "other/future/length": current_scene_other_agents_length_future,
+
+                "target/history/width": current_scene_target_agent_width_history,
+                "target/history/length": current_scene_target_agent_length_history,
+                "other/history/width": current_scene_other_agents_width_history,
+                "other/history/length": current_scene_other_agents_length_history
             }
             scene_data["trajectory_bucket"] = self._get_trajectory_class(scene_data)
             array_of_scene_data_dicts.append(scene_data)
         return array_of_scene_data_dicts
+
+
+if __name__ == '__main__':
+    from utils import get_config, data_to_numpy
+    from features_description import generate_features_description
+    from tqdm import tqdm
+    import tensorflow as tf
+    import os
+
+    project_dir = "/Users/xuyixuan/Downloads/Project/waymo-motion-prediction-challenge-2022-multipath-plus-plus"
+    FILENAME = os.path.join(project_dir, 'dataset/train_records/tfrecord-00000-of-01000')
+
+    dataset = tf.data.TFRecordDataset(FILENAME, compression_type='')
+
+    # Create iterator
+    iterator = iter(tqdm(dataset.as_numpy_iterator()))
+
+    features_description = generate_features_description()
+
+    config = get_config(
+        "/Users/xuyixuan/Downloads/waymo-motion-prediction-challenge-2022-multipath-plus-plus/code/configs/prerender.yaml")[
+        0]
+
+    visualizer = MultiPathPPRenderer(config['renderer_config'])
+
+    count = 0
+    # Loop over the entire dataset
+    for data in iterator:
+        count += 1
+        print(f"Processing data {count}")
+        # Parse the data first
+        data = tf.io.parse_single_example(data, features_description)
+
+        # Now convert data to numpy
+        data_to_numpy(data)
+
+        visualizer.render(data)
+
+        # # Render the data
+        # try:
+        #
+        # except Exception as e:
+        #     print(f"Error occurred when rendering data: {e}")
