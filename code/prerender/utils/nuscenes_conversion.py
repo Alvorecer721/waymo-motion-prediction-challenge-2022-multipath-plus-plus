@@ -224,10 +224,11 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
         result['state/future/velocity_x'][agent_idx] = agent_records_core[current_timestep_idx+1:, 7]
         result['state/future/velocity_y'][agent_idx] = agent_records_core[current_timestep_idx+1:, 8]
 
-    x_min = result['state/current/x'].min(initial=0, where=result['state/current/valid'] > 0)
-    y_min = result['state/current/y'].min(initial=0, where=result['state/current/valid'] > 0)
-    x_max = result['state/current/x'].max(initial=0, where=result['state/current/valid'] > 0)
-    y_max = result['state/current/y'].max(initial=0, where=result['state/current/valid'] > 0)
+    current_valid_mask = result['state/current/valid'] > 0
+    x_min = result['state/current/x'].min(initial=0, where=current_valid_mask)
+    y_min = result['state/current/y'].min(initial=0, where=current_valid_mask)
+    x_max = result['state/current/x'].max(initial=0, where=current_valid_mask)
+    y_max = result['state/current/y'].max(initial=0, where=current_valid_mask)
 
     scene_bounding_box = SceneBoundingBox(
         x_min=x_min,
