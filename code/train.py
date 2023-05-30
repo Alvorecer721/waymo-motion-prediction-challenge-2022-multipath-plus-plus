@@ -194,6 +194,7 @@ def main():
     parser.add_argument('--train-data-folder', type=str, help='Path to the training data folder')
     parser.add_argument('--val-data-folder', type=str, help='Path to the validation data folder')
     parser.add_argument('--norm-coeffs', type=str, help='Path to the normalization coefficient (.npy) file')
+    parser.add_argument('--config', type=str, help='Path to the config file')
     parser.add_argument('--lr', type=float, default=0.0001, help='Learning rate')
     parser.add_argument('--epoch', type=float, default=40, help='Number of epochs')
     parser.add_argument('--checkpoint', type=str, default=None, help='Path to the saved checkpoint')
@@ -204,7 +205,7 @@ def main():
     to_cuda(coeff)  # to GPU
 
     # Load the configuration file
-    config = get_config(f"{ROOT_PATH}/code/configs/final_RoP_Cov_Single.yaml")
+    config = get_config(args.config)
 
     # Set the training data path in the configuration
     config["train"]["data_config"]["dataset_config"]["data_path"] = args.train_data_folder
