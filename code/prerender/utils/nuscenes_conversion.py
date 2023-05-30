@@ -11,6 +11,9 @@ from nuscenes.map_expansion.map_api import NuScenesMap
 
 
 TOTAL_TIMESTEPS_LIMIT = 39
+# dimensions taken from https://forum.nuscenes.org/t/dimensions-of-the-ego-vehicle-used-to-gather-data/550
+EGO_VEHICLE_LENGTH = 4.084  # m
+EGO_VEHICLE_WIDTH = 1.73  # m
 
 
 class WaymoAgentType(IntEnum):
@@ -51,14 +54,13 @@ class AgentRecord:
         return self.x, self.y, self.yaw, self.speed, float(self.valid), self.length, self.width, self.velocity_x, self.velocity_y
 
 
-def get_annotation_tokens_by_sample(nuscenes, scene):
+def get_scene_samples(nuscenes, scene):
     curr_sample = nuscenes.get('sample', scene['first_sample_token'])
-    samples_with_annotations = [curr_sample['anns']]
+    samples = [curr_sample]
     while curr_sample['next'] != '':
         curr_sample = nuscenes.get('sample', curr_sample['next'])
-        samples_with_annotations.append(curr_sample['anns'])
-
-    return samples_with_annotations
+        samples.append(curr_sample)
+    return samples
 
 
 def get_agents_data(nuscenes, annotation_tokens):
@@ -84,6 +86,7 @@ def get_agents_data(nuscenes, annotation_tokens):
             width=width,
             velocity_x=velocity_x,
             velocity_y=velocity_y,
+            is_sdc=False,
             speed=speed,
             category=sample_annotation['category_name'],
             valid=True,
@@ -97,18 +100,72 @@ def get_agents_data(nuscenes, annotation_tokens):
 
 def get_scene_samples_data(nuscenes, scene):
     scene_samples_data = []
-    for sample_annotation_tokens in get_annotation_tokens_by_sample(nuscenes, scene):
-        sample_agents_data = get_agents_data(nuscenes, sample_annotation_tokens)
+    for sample in get_scene_samples(nuscenes, scene):
+        sample_agents_data = get_agents_data(nuscenes, sample['anns'])
+        sample_ego_vehicle_record = get_ego_vehicle_data(nuscenes, sample)
+        sample_agents_data['ego-vehicle'] = sample_ego_vehicle_record
         scene_samples_data.append(sample_agents_data)
+
     return scene_samples_data
 
 
-def get_scenes_data(nuscenes):
-    scenes_data = []
-    for scene in nuscenes.scene:
-        scene_samples_data = get_scene_samples_data(nuscenes, scene)
-        scenes_data.append(scene_samples_data)
-    return scenes_data
+def get_ego_vehicle_data(nuscenes, sample):
+    sample_data_token = sample['data']['LIDAR_TOP']
+    sample_data = nuscenes.get('sample_data', sample_data_token)
+
+    ego_pose = nuscenes.get('ego_pose', sample_data['ego_pose_token'])
+
+    x, y = ego_pose['translation'][:2]
+
+    velocity_vector = compute_ego_vehicle_velocity(nuscenes, sample)
+    if velocity_vector is None:
+        raise RuntimeError("cannot compute ego vehicle velocity: missing both prev and next sample")
+    velocity_x, velocity_y = velocity_vector
+    speed = linalg.norm(velocity_vector)
+
+    ego_vehicle_record = AgentRecord(
+        x=x,
+        y=y,
+        yaw=quaternion_yaw(Quaternion(ego_pose['rotation'])),
+        length=EGO_VEHICLE_LENGTH,
+        width=EGO_VEHICLE_WIDTH,
+        velocity_x=velocity_x,
+        velocity_y=velocity_y,
+        is_sdc=True,
+        speed=speed,
+        category='vehicle.ego',
+        valid=True,
+    )
+
+    return ego_vehicle_record
+
+
+def compute_ego_vehicle_velocity(nuscenes, sample):
+    has_prev = sample['prev'] != ''
+    has_next = sample['next'] != ''
+
+    if not has_prev and not has_next:
+        return None
+    
+    if has_prev:
+        first = nuscenes.get('sample', sample['prev'])
+    else:
+        first = sample
+    if has_next:
+        last = nuscenes.get('sample', sample['next'])
+    else:
+        last = sample
+
+    first_sample_data = nuscenes.get('sample_data', first['data']['LIDAR_TOP'])
+    last_sample_data = nuscenes.get('sample_data', last['data']['LIDAR_TOP'])
+
+    first_ego_pos = np.array(nuscenes.get('ego_pose', first_sample_data['ego_pose_token'])['translation'][:2])
+    last_ego_pos = np.array(nuscenes.get('ego_pose', last_sample_data['ego_pose_token'])['translation'][:2])
+
+    pos_diff = last_ego_pos - first_ego_pos
+    time_diff = 1e-6 * (last_sample_data['timestamp'] - first_sample_data['timestamp'])
+
+    return pos_diff / time_diff
 
 
 @dataclass
@@ -188,11 +245,7 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
         result['state/type'][agent_idx] = valid_record.category_to_type()
         result['state/tracks_to_predict'][agent_idx] = agent_idx if agent_records[current_timestep_idx].valid else 0.0
 
-        agent_records_core = np.fromiter(
-            (agent_record.get_core_tuple() for agent_record in agent_records),
-            dtype=np.dtype((float, 9)),
-            count=num_timesteps_total,
-        )
+        agent_records_core = np.array([agent_record.get_core_tuple() for agent_record in agent_records])
 
         result['state/past/x'][agent_idx] = agent_records_core[:current_timestep_idx, 0]
         result['state/past/y'][agent_idx] = agent_records_core[:current_timestep_idx, 1]
