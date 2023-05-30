@@ -98,21 +98,6 @@ def get_agents_data(nuscenes, annotation_tokens):
     return agent_id_to_data
 
 
-def get_full_scene_data(nuscenes, config, scene_id):
-    scene = nuscenes.scene[scene_id]
-
-    scene_samples_data = get_scene_samples_data(nuscenes, scene)
-    agents_dict, scene_bbox = scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, config["current_timestep_idx"])
-
-    scene_map = get_scene_map(nuscenes, scene)
-    roadgraph_dict = get_scene_roadgraph(scene_map, scene_bbox, config["map_expansion_radius"],
-                                         config["layers_of_interest"])
-
-    agents_dict.update(roadgraph_dict)
-
-    return agents_dict
-
-
 def compute_ego_vehicle_velocity(nuscenes, sample):
     has_prev = sample['prev'] != ''
     has_next = sample['next'] != ''
@@ -389,3 +374,18 @@ def get_scene_roadgraph(nusc_map, scene_bbox, r, layers_of_interest):
         'roadgraph_samples/type': np.array(node_types),
         'roadgraph_samples/valid': np.ones(len(node_coordinates)),
     }
+
+
+def get_full_scene_data(nuscenes, config, scene_id):
+    scene = nuscenes.scene[scene_id]
+
+    scene_samples_data = get_scene_samples_data(nuscenes, scene)
+    agents_dict, scene_bbox = scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, config["current_timestep_idx"])
+
+    scene_map = get_scene_map(nuscenes, scene)
+    roadgraph_dict = get_scene_roadgraph(scene_map, scene_bbox, config["map_expansion_radius"],
+                                         config["layers_of_interest"])
+
+    agents_dict.update(roadgraph_dict)
+
+    return agents_dict
