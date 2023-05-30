@@ -128,7 +128,6 @@ def compute_ego_vehicle_velocity(nuscenes, sample):
 
 def get_scene_samples_data(nuscenes, scene):
     scene_samples_data = []
-
     for sample in get_scene_samples(nuscenes, scene):
         sample_agents_data = get_agents_data(nuscenes, sample['anns'])
         ego_vehicle_token, sample_ego_vehicle_record = get_ego_vehicle_data(nuscenes, sample)
@@ -201,7 +200,7 @@ class SceneBoundingBox:
 def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_timestep_idx):
     num_timesteps_total = min(TOTAL_TIMESTEPS_LIMIT, len(scene_samples_data))
     scene_samples_data = scene_samples_data[:num_timesteps_total]
-    
+
     agent_to_timestep_to_data = defaultdict(lambda: [AgentRecord()] * num_timesteps_total)
 
     for timestep, agents_data in enumerate(scene_samples_data):
