@@ -6,6 +6,7 @@ renderers:
         segments_filtering_radius: 150
       agent_filtering:
         policy: "interesting"
+      n_segment_types: 9
 current_timestep_idx: 10 # 0...9 -> history, 10 -> current, 11...39 -> future
 layers_of_interest:
   - road_segment
