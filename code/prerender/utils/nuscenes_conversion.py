@@ -9,8 +9,6 @@ from numpy import linalg
 from nuscenes.eval.common.utils import quaternion_yaw
 from nuscenes.map_expansion.map_api import NuScenesMap
 
-from typing import List, Set
-
 
 TOTAL_TIMESTEPS_LIMIT = 39
 
