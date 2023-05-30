@@ -97,34 +97,6 @@ def get_agents_data(nuscenes, annotation_tokens):
     return agent_id_to_data
 
 
-def compute_ego_vehicle_velocity(nuscenes, sample):
-    has_prev = sample['prev'] != ''
-    has_next = sample['next'] != ''
-
-    if not has_prev and not has_next:
-        return None
-    
-    if has_prev:
-        first = nuscenes.get('sample', sample['prev'])
-    else:
-        first = sample
-    if has_next:
-        last = nuscenes.get('sample', sample['next'])
-    else:
-        last = sample
-
-    first_sample_data = nuscenes.get('sample_data', first['data']['LIDAR_TOP'])
-    last_sample_data = nuscenes.get('sample_data', last['data']['LIDAR_TOP'])
-
-    first_ego_pos = np.array(nuscenes.get('ego_pose', first_sample_data['ego_pose_token'])['translation'][:2])
-    last_ego_pos = np.array(nuscenes.get('ego_pose', last_sample_data['ego_pose_token'])['translation'][:2])
-
-    pos_diff = last_ego_pos - first_ego_pos
-    time_diff = 1e-6 * (last_sample_data['timestamp'] - first_sample_data['timestamp'])
-
-    return pos_diff / time_diff
-
-
 def get_scene_samples_data(nuscenes, scene):
     scene_samples_data = []
     for sample in get_scene_samples(nuscenes, scene):
@@ -169,6 +141,35 @@ def get_ego_vehicle_data(nuscenes, sample):
     )
 
     return ego_pose_token, ego_vehicle_record
+
+
+def compute_ego_vehicle_velocity(nuscenes, sample):
+    has_prev = sample['prev'] != ''
+    has_next = sample['next'] != ''
+
+    if not has_prev and not has_next:
+        return None
+    
+    if has_prev:
+        first = nuscenes.get('sample', sample['prev'])
+    else:
+        first = sample
+    if has_next:
+        last = nuscenes.get('sample', sample['next'])
+    else:
+        last = sample
+
+    first_sample_data = nuscenes.get('sample_data', first['data']['LIDAR_TOP'])
+    last_sample_data = nuscenes.get('sample_data', last['data']['LIDAR_TOP'])
+
+    first_ego_pos = np.array(nuscenes.get('ego_pose', first_sample_data['ego_pose_token'])['translation'][:2])
+    last_ego_pos = np.array(nuscenes.get('ego_pose', last_sample_data['ego_pose_token'])['translation'][:2])
+
+    pos_diff = last_ego_pos - first_ego_pos
+    time_diff = 1e-6 * (last_sample_data['timestamp'] - first_sample_data['timestamp'])
+
+    return pos_diff / time_diff
+
 
 
 def get_scenes_data(nuscenes):
