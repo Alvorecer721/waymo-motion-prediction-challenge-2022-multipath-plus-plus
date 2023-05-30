@@ -12,8 +12,8 @@ from nuscenes.map_expansion.map_api import NuScenesMap
 
 TOTAL_TIMESTEPS_LIMIT = 39
 # dimensions taken from https://forum.nuscenes.org/t/dimensions-of-the-ego-vehicle-used-to-gather-data/550
-EGO_VEHICLE_LENGTH = 4.084 #m
-EGO_VEHICLE_WIDTH = 1.73 #m
+EGO_VEHICLE_LENGTH = 4.084  # m
+EGO_VEHICLE_WIDTH = 1.73  # m
 
 
 class WaymoAgentType(IntEnum):
@@ -86,6 +86,7 @@ def get_agents_data(nuscenes, annotation_tokens):
             width=width,
             velocity_x=velocity_x,
             velocity_y=velocity_y,
+            is_sdc=False,
             speed=speed,
             category=sample_annotation['category_name'],
             valid=True,
@@ -102,7 +103,7 @@ def get_scene_samples_data(nuscenes, scene):
     for sample in get_scene_samples(nuscenes, scene):
         sample_agents_data = get_agents_data(nuscenes, sample['anns'])
         ego_vehicle_token, sample_ego_vehicle_record = get_ego_vehicle_data(nuscenes, sample)
-        sample_agents_data[ego_vehicle_token] =  sample_ego_vehicle_record
+        sample_agents_data[ego_vehicle_token] = sample_ego_vehicle_record
         scene_samples_data.append(sample_agents_data)
 
     return scene_samples_data
@@ -131,10 +132,11 @@ def get_ego_vehicle_data(nuscenes, sample):
         x=x,
         y=y,
         yaw=quaternion_yaw(Quaternion(ego_pose['rotation'])),
-        width=EGO_VEHICLE_WIDTH,
         length=EGO_VEHICLE_LENGTH,
+        width=EGO_VEHICLE_WIDTH,
         velocity_x=velocity_x,
         velocity_y=velocity_y,
+        is_sdc=True,
         speed=speed,
         category='vehicle.ego',
         valid=True,
@@ -169,15 +171,6 @@ def compute_ego_vehicle_velocity(nuscenes, sample):
     time_diff = 1e-6 * (last_sample_data['timestamp'] - first_sample_data['timestamp'])
 
     return pos_diff / time_diff
-
-
-
-def get_scenes_data(nuscenes):
-    scenes_data = []
-    for scene in nuscenes.scene:
-        scene_samples_data = get_scene_samples_data(nuscenes, scene)
-        scenes_data.append(scene_samples_data)
-    return scenes_data
 
 
 @dataclass
@@ -216,7 +209,6 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
     for agent_idx, (agent_id, agent_records) in enumerate(agent_to_timestep_to_data.items()):
         agent_records_core = [agent_record.get_core_tuple() for agent_record in agent_records]
         core_data_array[agent_idx] = np.array(agent_records_core)
-
 
     result = {
         'scenario/id': np.array(str(scene_id).encode('utf-8')),
