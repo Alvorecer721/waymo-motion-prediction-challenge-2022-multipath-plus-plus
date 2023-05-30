@@ -11,6 +11,9 @@ from nuscenes.map_expansion.map_api import NuScenesMap
 
 
 TOTAL_TIMESTEPS_LIMIT = 39
+# dimensions taken from https://forum.nuscenes.org/t/dimensions-of-the-ego-vehicle-used-to-gather-data/550
+EGO_VEHICLE_LENGTH = 4.084 #m
+EGO_VEHICLE_WIDTH = 1.73 #m
 
 
 class WaymoAgentType(IntEnum):
