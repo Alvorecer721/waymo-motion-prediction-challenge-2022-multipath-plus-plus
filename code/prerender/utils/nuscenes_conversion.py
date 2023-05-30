@@ -53,13 +53,13 @@ class AgentRecord:
         return self.x, self.y, self.yaw, self.speed, self.valid, self.length, self.width, self.velocity_x, self.velocity_y
 
 
-def get_annotation_tokens_by_sample(nuscenes, scene):
+def get_scene_samples(nuscenes, scene):
     curr_sample = nuscenes.get('sample', scene['first_sample_token'])
-    samples_with_annotations = [(curr_sample['anns'], curr_sample['data']['LIDAR_TOP'], curr_sample['prev'])]
+    samples = [curr_sample]
     while curr_sample['next'] != '':
         curr_sample = nuscenes.get('sample', curr_sample['next'])
-        samples_with_annotations.append((curr_sample['anns'], curr_sample['data']['LIDAR_TOP'], curr_sample['prev']))
-    return samples_with_annotations
+        samples.append(curr_sample)
+    return samples
 
 
 def get_agents_data(nuscenes, annotation_tokens):
@@ -96,6 +96,97 @@ def get_agents_data(nuscenes, annotation_tokens):
         agent_id_to_data[sample_annotation['instance_token']] = agent_record
 
     return agent_id_to_data
+
+
+def get_full_scene_data(nuscenes, config, scene_id):
+    scene = nuscenes.scene[scene_id]
+
+    scene_samples_data = get_scene_samples_data(nuscenes, scene)
+    agents_dict, scene_bbox = scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, config["current_timestep_idx"])
+
+    scene_map = get_scene_map(nuscenes, scene)
+    roadgraph_dict = get_scene_roadgraph(scene_map, scene_bbox, config["map_expansion_radius"],
+                                         config["layers_of_interest"])
+
+    agents_dict.update(roadgraph_dict)
+
+    return agents_dict
+
+
+def compute_ego_vehicle_velocity(nuscenes, sample):
+    has_prev = sample['prev'] != ''
+    has_next = sample['next'] != ''
+
+    if not has_prev and not has_next:
+        return None
+    
+    if has_prev:
+        first = nuscenes.get('sample', sample['prev'])
+    else:
+        first = sample
+    if has_next:
+        last = nuscenes.get('sample', sample['next'])
+    else:
+        last = sample
+
+    first_sample_data = nuscenes.get('sample_data', first['data']['LIDAR_TOP'])
+    last_sample_data = nuscenes.get('sample_data', last['data']['LIDAR_TOP'])
+
+    first_ego_pos = np.array(nuscenes.get('ego_pose', first_sample_data['ego_pose_token'])['translation'][:2])
+    last_ego_pos = np.array(nuscenes.get('ego_pose', last_sample_data['ego_pose_token'])['translation'][:2])
+
+    pos_diff = last_ego_pos - first_ego_pos
+    time_diff = 1e-6 * (last_sample_data['timestamp'] - first_sample_data['timestamp'])
+
+    return pos_diff / time_diff
+
+
+def get_scene_samples_data(nuscenes, scene):
+    scene_samples_data = []
+
+    for sample in get_scene_samples(nuscenes, scene):
+        sample_agents_data = get_agents_data(nuscenes, sample['anns'])
+        ego_vehicle_token, sample_ego_vehicle_record = get_ego_vehicle_data(nuscenes, sample)
+        sample_agents_data[ego_vehicle_token] =  sample_ego_vehicle_record
+        scene_samples_data.append(sample_agents_data)
+
+    return scene_samples_data
+
+
+def get_ego_vehicle_data(nuscenes, sample):
+    sample_data_token = sample['data']['LIDAR_TOP']
+    sample_data = nuscenes.get('sample_data', sample_data_token)
+
+    # Check if 'ego_pose_token' exists in 'sample_data'
+    if 'ego_pose_token' not in sample_data:
+        return None
+
+    ego_pose_token = sample_data['ego_pose_token']
+    ego_pose = nuscenes.get('ego_pose', ego_pose_token)
+
+    x, y = ego_pose['translation'][:2]
+
+    velocity_vector = compute_ego_vehicle_velocity(nuscenes, sample)
+    if velocity_vector is None:
+        raise RuntimeError("cannot compute ego vehicle velocity: missing both prev and next sample")
+    velocity_x, velocity_y = velocity_vector
+    speed = linalg.norm(velocity_vector)
+
+    ego_vehicle_record = AgentRecord(
+        x=x,
+        y=y,
+        yaw=quaternion_yaw(Quaternion(ego_pose['rotation'])),
+        width=1.7,
+        length=4,
+        velocity_x=velocity_x,
+        velocity_y=velocity_y,
+        speed=speed,
+        category='vehicle.ego',
+        valid=True,
+    )
+
+    return ego_pose_token, ego_vehicle_record
+
 
 def get_scenes_data(nuscenes):
     scenes_data = []
@@ -298,99 +389,3 @@ def get_scene_roadgraph(nusc_map, scene_bbox, r, layers_of_interest):
         'roadgraph_samples/type': np.array(node_types),
         'roadgraph_samples/valid': np.ones(len(node_coordinates)),
     }
-
-
-def get_full_scene_data(nuscenes, config, scene_id):
-    scene = nuscenes.scene[scene_id]
-
-    scene_samples_data = get_scene_samples_data(nuscenes, scene)
-    agents_dict, scene_bbox = scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, config["current_timestep_idx"])
-
-    scene_map = get_scene_map(nuscenes, scene)
-    roadgraph_dict = get_scene_roadgraph(scene_map, scene_bbox, config["map_expansion_radius"],
-                                         config["layers_of_interest"])
-
-    agents_dict.update(roadgraph_dict)
-
-    return agents_dict
-
-
-def compute_velocity(nuscenes, current_sample_token, previous_sample_token):
-    current_sample = nuscenes.get('sample', current_sample_token)
-    previous_sample = nuscenes.get('sample', previous_sample_token)
-
-    # Get the ego_pose associated with the same type of sensor data in each sample
-    current_ego_pose = nuscenes.get('ego_pose', current_sample['data']['LIDAR_TOP'])
-    previous_ego_pose = nuscenes.get('ego_pose', previous_sample['data']['LIDAR_TOP'])
-
-    # Compute time difference (assuming same time difference between consecutive samples)
-    dt = (current_sample['timestamp'] - previous_sample['timestamp']) / 1e6  # convert from microseconds to seconds
-
-    # Avoid DivisionByZero error
-    if dt < 1e-9:  
-        return [0,0,0]
-
-    # Compute position difference
-    dx = np.array(current_ego_pose['translation']) - np.array(previous_ego_pose['translation'])
-    # print(dx)
-
-    # Compute velocity
-    velocity = dx / dt
-
-    return velocity.tolist()
-
-
-def get_scene_samples_data(nuscenes, scene):
-    scene_samples_data = []
-    
-
-    for sample in nuscenes.field2token('sample', 'scene_token', scene['token']):
-        sample_annotation_tokens = nuscenes.field2token('sample_annotation', 'sample_token', sample)
-        sample_agents_data = get_agents_data(nuscenes, sample_annotation_tokens)
-        scene_samples_data.append(sample_agents_data)
-
-        sample_data_token = nuscenes.get('sample', sample)['data']['LIDAR_TOP']
-        if sample_data_token is not None:
-            sample_ego_vehicle_data = get_ego_vehicle_data(nuscenes, sample_data_token, previous_sample_token)
-            ego_vehicle_data.append(sample_ego_vehicle_data)
-            previous_sample_token = sample
-
-    return scene_samples_data
-
-
-def get_ego_vehicle_data(nuscenes, sample_data_token, previous_sample_token=None):
-    ego_vehicle_data = []
-    sample_data = nuscenes.get('sample_data', sample_data_token)
-
-    # Check if 'ego_pose_token' exists in 'sample_data'
-    if 'ego_pose_token' in sample_data:
-        ego_pose = nuscenes.get('ego_pose', sample_data['ego_pose_token'])
-
-        ego_translation = ego_pose['translation']
-        x, y, z = ego_translation
-
-        # compute velocity if previous_sample_token is not None
-        if previous_sample_token:
-            velocity = compute_velocity(nuscenes, sample_data['sample_token'], previous_sample_token)
-        else:
-            velocity = [0,0,0]
-
-        velocity_x, velocity_y = velocity[:2]
-        speed = linalg.norm(velocity)
-
-        ego_vehicle_record = AgentRecord(
-            x=x,
-            y=y,
-            yaw=quaternion_yaw(Quaternion(ego_pose['rotation'])),
-            width=1.7,
-            length=4,
-            velocity_x=velocity_x,
-            velocity_y=velocity_y,
-            speed=speed,
-            category='vehicle.ego',
-            valid=True,
-        )
-
-        ego_vehicle_data.append(ego_vehicle_record)
-
-    return ego_vehicle_data
