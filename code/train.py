@@ -76,8 +76,8 @@ def train_epoch(model, dataloader, norm_coeffs, optimizer, scheduler, config, nu
 
         # Normalise the output if the configuration requires it
         if config["train"]["normalize_output"]:
-            coordinates = denormalize_future_xy(coordinates, norm_coeffs)
-            assert torch.isfinite(coordinates).all()
+            xy_future_gt = normalize_future_xy(xy_future_gt, norm_coeffs)
+            assert torch.isfinite(xy_future_gt).all()
 
         # Compute loss
         loss = nll_with_covariances(
@@ -129,8 +129,8 @@ def validate_epoch(model, val_dataloader, norm_coeffs, config, epoch, num_steps)
 
             # Reverse the normalisation process
             if config["train"]["normalize_output"]:
-                coordinates = denormalize_future_xy(coordinates, norm_coeffs)
-                assert torch.isfinite(coordinates).all()
+                xy_future_gt = normalize_future_xy(xy_future_gt, norm_coeffs)
+                assert torch.isfinite(xy_future_gt).all()
 
             # Compute the validation loss using the model outputs and ground truth
             val_loss = nll_with_covariances(
