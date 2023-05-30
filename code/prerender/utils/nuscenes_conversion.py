@@ -113,12 +113,7 @@ def get_ego_vehicle_data(nuscenes, sample):
     sample_data_token = sample['data']['LIDAR_TOP']
     sample_data = nuscenes.get('sample_data', sample_data_token)
 
-    # Check if 'ego_pose_token' exists in 'sample_data'
-    if 'ego_pose_token' not in sample_data:
-        return None
-
-    ego_pose_token = sample_data['ego_pose_token']
-    ego_pose = nuscenes.get('ego_pose', ego_pose_token)
+    ego_pose = nuscenes.get('ego_pose', sample_data['ego_pose_token'])
 
     x, y = ego_pose['translation'][:2]
 
