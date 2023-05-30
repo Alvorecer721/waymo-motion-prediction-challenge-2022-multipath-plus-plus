@@ -102,8 +102,8 @@ def get_scene_samples_data(nuscenes, scene):
     scene_samples_data = []
     for sample in get_scene_samples(nuscenes, scene):
         sample_agents_data = get_agents_data(nuscenes, sample['anns'])
-        ego_vehicle_token, sample_ego_vehicle_record = get_ego_vehicle_data(nuscenes, sample)
-        sample_agents_data[ego_vehicle_token] = sample_ego_vehicle_record
+        sample_ego_vehicle_record = get_ego_vehicle_data(nuscenes, sample)
+        sample_agents_data['ego-vehicle'] = sample_ego_vehicle_record
         scene_samples_data.append(sample_agents_data)
 
     return scene_samples_data
@@ -142,7 +142,7 @@ def get_ego_vehicle_data(nuscenes, sample):
         valid=True,
     )
 
-    return ego_pose_token, ego_vehicle_record
+    return ego_vehicle_record
 
 
 def compute_ego_vehicle_velocity(nuscenes, sample):
