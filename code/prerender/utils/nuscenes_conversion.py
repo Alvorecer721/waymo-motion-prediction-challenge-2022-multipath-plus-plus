@@ -241,15 +241,15 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
 
 
 class RoadgraphLayerType(IntEnum):
-    ROAD_SEGMENT = 0
-    ROAD_BLOCK = 1
-    LANE = 2
-    PED_CROSSING = 3
-    WALKWAY = 4
-    STOP_LINE = 5
-    CARPARK_AREA = 6
-    ROAD_DIVIDER = 7
-    LANE_DIVIDER = 8
+    ROAD_SEGMENT = 1
+    ROAD_BLOCK = 2
+    LANE = 3
+    PED_CROSSING = 4
+    WALKWAY = 5
+    STOP_LINE = 6
+    CARPARK_AREA = 7
+    ROAD_DIVIDER = 8
+    LANE_DIVIDER = 9
 
 
 def roadgraph_layer_string_to_enum(layer):
