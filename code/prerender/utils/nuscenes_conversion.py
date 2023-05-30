@@ -71,7 +71,7 @@ def get_agents_data(nuscenes, annotation_tokens):
         rotation_quaternion = Quaternion(sample_annotation['rotation'])
         width, length = sample_annotation['size'][:2]
 
-        # Get velocity using box_velocity
+
         velocity_vector = nuscenes.box_velocity(sample_annotation_token)
         velocity_x, velocity_y = velocity_vector[:2]
         speed = linalg.norm(velocity_vector)
