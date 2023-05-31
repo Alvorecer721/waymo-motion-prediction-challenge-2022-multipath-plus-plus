@@ -65,7 +65,7 @@ def calculate_normalization_coefficients(
         ('target/history/agent_features_diff', agent_diff_feature_count),
         ('other/history/agent_features_diff', agent_diff_feature_count),
         ('road_network_embeddings', road_network_feature_count),
-        ('target/future/xy', 2)
+        ('target/history/xy', 2)
     ]
 
     means = {key: np.zeros(dimension) for key, dimension in key_dimension_pairs}
@@ -85,7 +85,7 @@ def calculate_normalization_coefficients(
                 'target/history/agent_features_diff': get_valid_values(value, 'target/history/lstm_data_diff', agent_diff_feature_count, 'target/history/valid_diff', respect_validity),
                 'other/history/agent_features_diff': get_valid_values(value, 'other/history/lstm_data_diff', agent_diff_feature_count, 'other/history/valid_diff', respect_validity),
                 'road_network_embeddings': value['road_network_embeddings'][:, :, :road_network_feature_count].squeeze(),
-                'target/future/xy': get_valid_values(value, 'target/future/xy', 2, 'target/future/valid', respect_validity)
+                'target/history/xy': get_valid_values(value, 'target/history/xy', 2, 'target/history/valid', respect_validity)
             }
 
             # Update counts, means, and squared_means for each key
@@ -128,11 +128,18 @@ def calculate_normalization_coefficients(
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--data-path", type=str, required=True, help="Path to pre-rendered data")
-    parser.add_argument("--output-path", type=str, required=True, help="Path to save normalizations")
-    parser.add_argument("--config", type=str, required=True, help="Config file path")
-    args = parser.parse_args()
+    class Args:
+        data_path = '/Users/xuyixuan/Downloads/train_new'
+        output_path = '/Users/xuyixuan/Downloads/prerendered'
+        config = '/Users/xuyixuan/Downloads/waymo-motion-prediction-challenge-2022-multipath-plus-plus/code/configs/normalization.yaml'
+
+    args = Args()
+
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("--data-path", type=str, required=True, help="Path to pre-rendered data")
+    # parser.add_argument("--output-path", type=str, required=True, help="Path to save normalizations")
+    # parser.add_argument("--config", type=str, required=True, help="Config file path")
+    # args = parser.parse_args()
 
     config = get_config(args.config)
     config['dataset_config']['data_path'] = args.data_path
@@ -153,5 +160,5 @@ def main():
     np.save(args.output_path, result)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

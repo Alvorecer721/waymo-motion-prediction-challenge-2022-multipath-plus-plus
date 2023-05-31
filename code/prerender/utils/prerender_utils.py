@@ -51,6 +51,10 @@ def generate_filename(scene_data):
 
 
 def merge_and_save(visualizers, data, output_path, is_nuscenes=False):
+    # Check if output_path exists, if not, create it
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
     if not is_nuscenes:
         data_to_numpy(data)
     preprocessed_dicts = [visualizer.render(data) for visualizer in visualizers]
