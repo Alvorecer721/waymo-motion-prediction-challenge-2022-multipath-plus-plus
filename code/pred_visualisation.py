@@ -77,7 +77,7 @@ def pred_one_scene(model, scene_data, coeff):
             coordinates = denormalize_future_xy(coordinates, coeff)
             assert torch.isfinite(coordinates).all()
 
-    return coordinates
+    return coordinates.cpu()[0]
 
 
 def main():
