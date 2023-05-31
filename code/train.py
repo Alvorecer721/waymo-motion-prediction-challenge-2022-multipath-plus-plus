@@ -196,7 +196,7 @@ def main():
     parser.add_argument('--norm-coeffs', type=str, help='Path to the normalization coefficient (.npy) file')
     parser.add_argument('--config', type=str, help='Path to the config file')
     parser.add_argument('--lr', type=float, default=0.0001, help='Learning rate')
-    parser.add_argument('--epoch', type=float, default=40, help='Number of epochs')
+    parser.add_argument('--epoch', type=int, default=40, help='Number of epochs')
     parser.add_argument('--checkpoint', type=str, default=None, help='Path to the saved checkpoint')
     args = parser.parse_args()
 
