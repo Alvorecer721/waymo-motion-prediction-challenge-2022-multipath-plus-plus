@@ -71,7 +71,7 @@ def get_agents_data(nuscenes, annotation_tokens):
         x, y = sample_annotation['translation'][:2]
         rotation_quaternion = Quaternion(sample_annotation['rotation'])
         width, length = sample_annotation['size'][:2]
-        velocity_vector = nuscenes.box_velocity(sample_annotation_token, 60.0)
+        velocity_vector = nuscenes.box_velocity(sample_annotation_token)
 
         is_valid = not np.isnan(velocity_vector).any()
         if is_valid:
