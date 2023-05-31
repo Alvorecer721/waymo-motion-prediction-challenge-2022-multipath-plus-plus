@@ -1,14 +1,13 @@
 import tensorflow as tf
 import numpy as np
 from matplotlib import pyplot as plt
-from features_description import generate_features_description
 
 
-def parse_one_scene(filename):
-    dataset = tf.data.TFRecordDataset(filename, compression_type='')
-    data = next(dataset.as_numpy_iterator())
-    parsed = tf.io.parse_single_example(data, generate_features_description())
-    return parsed
+#def parse_one_scene(filename):
+#    dataset = tf.data.TFRecordDataset(filename, compression_type='')
+#    data = next(dataset.as_numpy_iterator())
+#    parsed = tf.io.parse_single_example(data, generate_features_description())
+#    return parsed
 
 
 def plot_arrowbox(center, yaw, length, width, color, alpha=1):
