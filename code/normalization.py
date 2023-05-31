@@ -128,11 +128,18 @@ def calculate_normalization_coefficients(
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--data-path", type=str, required=True, help="Path to pre-rendered data")
-    parser.add_argument("--output-path", type=str, required=True, help="Path to save normalizations")
-    parser.add_argument("--config", type=str, required=True, help="Config file path")
-    args = parser.parse_args()
+    class Args:
+        data_path = '/Users/xuyixuan/Downloads/train_new'
+        output_path = '/Users/xuyixuan/Downloads/prerendered'
+        config = '/Users/xuyixuan/Downloads/waymo-motion-prediction-challenge-2022-multipath-plus-plus/code/configs/normalization.yaml'
+
+    args = Args()
+
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("--data-path", type=str, required=True, help="Path to pre-rendered data")
+    # parser.add_argument("--output-path", type=str, required=True, help="Path to save normalizations")
+    # parser.add_argument("--config", type=str, required=True, help="Config file path")
+    # args = parser.parse_args()
 
     config = get_config(args.config)
     config['dataset_config']['data_path'] = args.data_path
@@ -153,5 +160,5 @@ def main():
     np.save(args.output_path, result)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

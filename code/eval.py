@@ -21,17 +21,17 @@ def _default_metrics_config():
   speed_scale_lower: 0.5
   speed_scale_upper: 1.0
   step_configurations {
-    measurement_step: 5
+    measurement_step: 3
     lateral_miss_threshold: 1.0
     longitudinal_miss_threshold: 2.0
   }
   step_configurations {
-    measurement_step: 9
+    measurement_step: 5
     lateral_miss_threshold: 1.8
     longitudinal_miss_threshold: 3.6
   }
   step_configurations {
-    measurement_step: 15
+    measurement_step: 8
     lateral_miss_threshold: 3.0
     longitudinal_miss_threshold: 6.0
   }

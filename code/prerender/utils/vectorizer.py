@@ -392,6 +392,8 @@ class MultiPathPPRenderer(Renderer):
 
         # improve readability
         num_valid_agents = agent_history_info["history/valid"].shape[0]
+        # array_of_scene_data_dicts = [None] * num_valid_agents  # Pre-allocating memory
+
         for i in range(num_valid_agents):
             if not self._target_agent_filter.allow(data, i):
                 continue
@@ -488,22 +490,25 @@ class MultiPathPPRenderer(Renderer):
                 agent_history_info["history/length"], i, "length"
             )
 
+            # Create a mask to avoid using `np.delete` in the original implementation
+            # Which essentially create new np.arrays that is not memory efficient
+            # This mask is used to retrieve data related to other agents
+            mask = np.ones(agent_history_info["type"].shape, dtype=bool)
+            mask[i] = False
+
             scene_data = {
                 "shift": current_agent_scene_shift[None,],
                 "yaw": current_agent_scene_yaw,
                 "scenario_id": agent_history_info["scenario_id"].item().decode("utf-8"),
                 "agent_id": int(agent_history_info["id"][i]),
                 "target/agent_type": np.array([int(agent_history_info["type"][i])]).reshape(1),
-                "other/agent_type": np.delete(agent_history_info["type"], i, axis=0).astype(int),
+                # "other/agent_type": np.delete(agent_history_info["type"], i, axis=0).astype(int),
+                "other/agent_type": agent_history_info["type"][mask].astype(int),
 
                 # is_sdc stands for "is self-driving car", it is 1 if the agent is a self-driving car and 0 otherwise
                 "target/is_sdc": np.array(int(agent_history_info["is_sdc"][i])).reshape(1),
-                "other/is_sdc": np.delete(agent_history_info["is_sdc"], i, axis=0).astype(int),
-
-                # "target/width": agent_history_info["width"][i].item(),
-                # "target/length": agent_history_info["length"][i].item(),
-                # "other/width": np.delete(agent_history_info["width"], i),
-                # "other/length": np.delete(agent_history_info["length"], i),
+                # "other/is_sdc": np.delete(agent_history_info["is_sdc"], i, axis=0).astype(int),
+                "other/is_sdc": agent_history_info["is_sdc"][mask].astype(int),
 
                 "target/future/xy": current_scene_agents_coordinates_future[i][None,],
                 "target/future/yaw": current_scene_agents_yaws_future[i][None,],
@@ -514,14 +519,19 @@ class MultiPathPPRenderer(Renderer):
                 "target/history/speed": current_scene_target_agent_speed_history,
                 "target/history/valid": agent_history_info["history/valid"][i][None,],
 
-                "other/future/xy": np.delete(current_scene_agents_coordinates_future, i, axis=0),
-                "other/future/yaw": np.delete(current_scene_agents_yaws_future, i, axis=0),
-                "other/future/speed": np.delete(agent_history_info["future/speed"], i, axis=0),
-                "other/future/valid": np.delete(agent_history_info["future/valid"], i, axis=0),
+                # "other/future/xy": np.delete(current_scene_agents_coordinates_future, i, axis=0),
+                # "other/future/yaw": np.delete(current_scene_agents_yaws_future, i, axis=0),
+                # "other/future/speed": np.delete(agent_history_info["future/speed"], i, axis=0),
+                # "other/future/valid": np.delete(agent_history_info["future/valid"], i, axis=0),
+                "other/future/xy": current_scene_agents_coordinates_future[mask],
+                "other/future/yaw": current_scene_agents_yaws_future[mask],
+                "other/future/speed": agent_history_info["future/speed"][mask],
+                "other/future/valid": agent_history_info["future/valid"][mask],
                 "other/history/xy": current_scene_other_agents_coordinates_history,
                 "other/history/yaw": current_scene_other_agents_yaws_history,
                 "other/history/speed": current_scene_other_agents_speed_history,
-                "other/history/valid": np.delete(agent_history_info["history/valid"], i, axis=0),
+                # "other/history/valid": np.delete(agent_history_info["history/valid"], i, axis=0),
+                "other/history/valid": agent_history_info["history/valid"][mask],
 
                 "road_network_embeddings": road_segments_embeddings,
                 "road_network_segments": current_scene_road_network_coordinates,
@@ -545,6 +555,7 @@ class MultiPathPPRenderer(Renderer):
             }
             scene_data["trajectory_bucket"] = self._get_trajectory_class(scene_data)
             array_of_scene_data_dicts.append(scene_data)
+
         return array_of_scene_data_dicts
 
 
@@ -571,21 +582,23 @@ if __name__ == '__main__':
 
     visualizer = MultiPathPPRenderer(config['renderer_config'])
 
-    count = 0
     # Loop over the entire dataset
     for data in iterator:
-        count += 1
-        print(f"Processing data {count}")
         # Parse the data first
         data = tf.io.parse_single_example(data, features_description)
 
         # Now convert data to numpy
         data_to_numpy(data)
 
-        visualizer.render(data)
+        preprocessed_dicts = [visualizer.render(data)]
+        for scene_number in range(len(preprocessed_dicts[0])):
+            scene_data = {}
+            for visualizer_number in range(len(preprocessed_dicts)):
+                scene_data.update(preprocessed_dicts[visualizer_number][scene_number])
 
         # # Render the data
         # try:
         #
         # except Exception as e:
         #     print(f"Error occurred when rendering data: {e}")
+
