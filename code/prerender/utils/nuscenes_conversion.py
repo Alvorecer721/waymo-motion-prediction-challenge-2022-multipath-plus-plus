@@ -72,8 +72,14 @@ def get_agents_data(nuscenes, annotation_tokens):
         rotation_quaternion = Quaternion(sample_annotation['rotation'])
         width, length = sample_annotation['size'][:2]
         velocity_vector = nuscenes.box_velocity(sample_annotation_token, 60.0)
-        velocity_x, velocity_y = velocity_vector[:2]
-        speed = linalg.norm(velocity_vector)
+
+        is_valid = not np.isnan(velocity_vector).any()
+        if is_valid:
+            velocity_x, velocity_y = velocity_vector[:2]
+            speed = linalg.norm(velocity_vector)
+        else:
+            velocity_x, velocity_y = -1.0, -1.0
+            speed = -1.0
 
         attributes = {nuscenes.get('attribute', attribute_token)['name'] for attribute_token in
                       sample_annotation['attribute_tokens']}
@@ -89,7 +95,7 @@ def get_agents_data(nuscenes, annotation_tokens):
             is_sdc=False,
             speed=speed,
             category=sample_annotation['category_name'],
-            valid=True,
+            valid=is_valid,
             attributes=attributes,
         )
 
