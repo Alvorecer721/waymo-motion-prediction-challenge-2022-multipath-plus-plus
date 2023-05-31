@@ -19,7 +19,7 @@ def plot_arrowbox(center, yaw, length, width, color, alpha=1):
         [length * 1.3 / 2, 0],
         [length / 2, -width / 2],
         [-length / 2, -width / 2]])
-    box = box @ R.T + center.clone().numpy()
+    box = box @ R.T + center.clone().cpu().numpy()
     plt.plot(box[:, 0], box[:, 1], color=color, alpha=alpha)
 
 
