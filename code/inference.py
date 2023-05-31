@@ -68,6 +68,7 @@ def main():
     parser.add_argument('--data-folder', type=str, help='Path to the data folder')
     parser.add_argument('--norm-coeffs', type=str, help='Path to the normalization coefficient (.npy) file')
     parser.add_argument('--checkpoint', type=str, default=None, help='Path to the saved checkpoint')
+    parser.add_argument('--config', type=str, help='Path to the config file')
     args = parser.parse_args()
 
     # Load normalisation coefficients and move them to GPU
@@ -75,7 +76,7 @@ def main():
     to_cuda(coeff)  # to GPU
 
     # Load the configuration file
-    config = get_config(f"{ROOT_PATH}/code/configs/final_RoP_Cov_Single.yaml")
+    config = get_config(args.config)
 
     # Set the inference data path in the configuration
     config["val"]["data_config"]["dataset_config"]["data_path"] = args.data_folder
