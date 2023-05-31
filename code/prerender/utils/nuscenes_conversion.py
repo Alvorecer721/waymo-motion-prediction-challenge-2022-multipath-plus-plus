@@ -191,6 +191,22 @@ class SceneBoundingBox:
         return self.x_min, self.y_min, self.x_max, self.y_max
 
 
+def mock_data_continuously(data):
+    """
+    Converts [-1, 2, 2, -1, -1, 5, 5, -1] to [2, 2, 2, 2, 2, 5, 5, 5]
+    """
+    if (data == -1).all():
+        return data
+
+    idx = np.where(data != -1, np.arange(len(data)), 0)
+    np.maximum.accumulate(idx, out=idx)
+    data = data[idx]
+
+    first = np.where(data != -1)[0][0]
+    data[:first] = data[first]
+    return data
+
+
 def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_timestep_idx):
     num_timesteps_total = min(TOTAL_TIMESTEPS_LIMIT, len(scene_samples_data))
 
@@ -255,6 +271,13 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
         result['state/tracks_to_predict'][agent_idx] = agent_idx if agent_records[current_timestep_idx].valid else 0.0
 
         agent_records_core = np.array([agent_record.get_core_tuple() for agent_record in agent_records])
+
+        # mock all the data expect validity
+        # we actually only need to mock x and y because it affects road embeddings retrieval
+        for i in range(9):
+            if i == 4:
+                continue
+            agent_records_core[:, i] = mock_data_continuously(agent_records_core[:, i])
 
         result['state/past/x'][agent_idx] = agent_records_core[:current_timestep_idx, 0]
         result['state/past/y'][agent_idx] = agent_records_core[:current_timestep_idx, 1]
