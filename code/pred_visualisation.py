@@ -60,6 +60,7 @@ def plot_scene_pred(scene_data, coordinates):
                           scene_data["target/history/width"][0][-1], "purple")
 
     plot_roadlines(scene_data["road_network_segments"])
+    plt.savefig('trajectories.png')
 
 
 def pred_one_scene(config, model, scene_data, coeff):
