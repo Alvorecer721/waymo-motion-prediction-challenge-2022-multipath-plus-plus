@@ -171,6 +171,7 @@ model:
       trainable_cov: True
       size: 640
       n_trajectories: 6
+      n_future_timesteps: 80
       mcg_predictor:
         block:
           c_bias: True

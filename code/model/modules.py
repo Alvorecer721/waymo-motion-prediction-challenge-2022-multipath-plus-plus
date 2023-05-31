@@ -104,7 +104,7 @@ class MCGBlock(nn.Module):
         self._blocks = nn.ModuleList(self._blocks)
         self.n_in = self._blocks[0].n_in
         self.n_out = self._blocks[-1].n_out
-    
+
     def _repeat_tensor(self, tensor, scatter_numbers, axis=0):
         result = []
         for i in range(len(scatter_numbers)):
@@ -162,7 +162,8 @@ class Decoder(nn.Module):
         self._mcg_predictor = MCGBlock(config["mcg_predictor"])
         if not self._return_embedding:
             self._mlp_decoder = NormalMLP(config["DECODER"])
-    
+        self.n_future_timesteps = config["n_future_timesteps"]
+
     def forward(self, target_scatter_numbers, target_scatter_idx, final_embedding, batch_size):
         # assert torch.isfinite(self._learned_anchor_embeddings).all()
         assert torch.isfinite(final_embedding).all()
@@ -174,17 +175,17 @@ class Decoder(nn.Module):
             return trajectories_embeddings
         # 
         res = self._mlp_decoder(trajectories_embeddings)
-        coordinates = res[:, :, :80 * 2].reshape(
-            batch_size, self._config["n_trajectories"], 80, 2)
+        coordinates = res[:, :, :self.n_future_timesteps * 2].reshape(
+            batch_size, self._config["n_trajectories"], self.n_future_timesteps, 2)
         assert torch.isfinite(coordinates).all()
-        a = res[:, :, 80 * 2: 80 * 3].reshape(
-            batch_size, self._config["n_trajectories"], 80, 1)
+        a = res[:, :, self.n_future_timesteps * 2: self.n_future_timesteps * 3].reshape(
+            batch_size, self._config["n_trajectories"], self.n_future_timesteps, 1)
         assert torch.isfinite(a).all()
-        b = res[:, :, 80 * 3: 80 * 4].reshape(
-            batch_size, self._config["n_trajectories"], 80, 1)
+        b = res[:, :, self.n_future_timesteps * 3: self.n_future_timesteps * 4].reshape(
+            batch_size, self._config["n_trajectories"], self.n_future_timesteps, 1)
         assert torch.isfinite(b).all()
-        c = res[:, :, 80 * 4: 80 * 5].reshape(
-            batch_size, self._config["n_trajectories"], 80, 1)
+        c = res[:, :, self.n_future_timesteps * 4: self.n_future_timesteps * 5].reshape(
+            batch_size, self._config["n_trajectories"], self.n_future_timesteps, 1)
         assert torch.isfinite(c).all()
         probas = res[:, :, -1]
         assert torch.isfinite(probas).all()
