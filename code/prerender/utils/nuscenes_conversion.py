@@ -12,8 +12,8 @@ from nuscenes.map_expansion.map_api import NuScenesMap
 
 TOTAL_TIMESTEPS_LIMIT = 39
 # dimensions taken from https://forum.nuscenes.org/t/dimensions-of-the-ego-vehicle-used-to-gather-data/550
-EGO_VEHICLE_LENGTH = 4.084 #m
-EGO_VEHICLE_WIDTH = 1.73 #m
+EGO_VEHICLE_LENGTH = 4.084  # m
+EGO_VEHICLE_WIDTH = 1.73  # m
 
 
 class WaymoAgentType(IntEnum):
@@ -51,7 +51,7 @@ class AgentRecord:
         return WaymoAgentType.OTHER
 
     def get_core_tuple(self):
-        return self.x, self.y, self.yaw, self.speed, self.valid, self.length, self.width, self.velocity_x, self.velocity_y
+        return self.x, self.y, self.yaw, self.speed, float(self.valid), self.length, self.width, self.velocity_x, self.velocity_y
 
 
 def get_scene_samples(nuscenes, scene):
@@ -86,6 +86,7 @@ def get_agents_data(nuscenes, annotation_tokens):
             width=width,
             velocity_x=velocity_x,
             velocity_y=velocity_y,
+            is_sdc=False,
             speed=speed,
             category=sample_annotation['category_name'],
             valid=True,
@@ -101,8 +102,8 @@ def get_scene_samples_data(nuscenes, scene):
     scene_samples_data = []
     for sample in get_scene_samples(nuscenes, scene):
         sample_agents_data = get_agents_data(nuscenes, sample['anns'])
-        ego_vehicle_token, sample_ego_vehicle_record = get_ego_vehicle_data(nuscenes, sample)
-        sample_agents_data[ego_vehicle_token] =  sample_ego_vehicle_record
+        sample_ego_vehicle_record = get_ego_vehicle_data(nuscenes, sample)
+        sample_agents_data['ego-vehicle'] = sample_ego_vehicle_record
         scene_samples_data.append(sample_agents_data)
 
     return scene_samples_data
@@ -112,12 +113,7 @@ def get_ego_vehicle_data(nuscenes, sample):
     sample_data_token = sample['data']['LIDAR_TOP']
     sample_data = nuscenes.get('sample_data', sample_data_token)
 
-    # Check if 'ego_pose_token' exists in 'sample_data'
-    if 'ego_pose_token' not in sample_data:
-        return None
-
-    ego_pose_token = sample_data['ego_pose_token']
-    ego_pose = nuscenes.get('ego_pose', ego_pose_token)
+    ego_pose = nuscenes.get('ego_pose', sample_data['ego_pose_token'])
 
     x, y = ego_pose['translation'][:2]
 
@@ -131,16 +127,17 @@ def get_ego_vehicle_data(nuscenes, sample):
         x=x,
         y=y,
         yaw=quaternion_yaw(Quaternion(ego_pose['rotation'])),
-        width=EGO_VEHICLE_WIDTH,
         length=EGO_VEHICLE_LENGTH,
+        width=EGO_VEHICLE_WIDTH,
         velocity_x=velocity_x,
         velocity_y=velocity_y,
+        is_sdc=True,
         speed=speed,
         category='vehicle.ego',
         valid=True,
     )
 
-    return ego_pose_token, ego_vehicle_record
+    return ego_vehicle_record
 
 
 def compute_ego_vehicle_velocity(nuscenes, sample):
@@ -171,15 +168,6 @@ def compute_ego_vehicle_velocity(nuscenes, sample):
     return pos_diff / time_diff
 
 
-
-def get_scenes_data(nuscenes):
-    scenes_data = []
-    for scene in nuscenes.scene:
-        scene_samples_data = get_scene_samples_data(nuscenes, scene)
-        scenes_data.append(scene_samples_data)
-    return scenes_data
-
-
 @dataclass
 class SceneBoundingBox:
     x_min: float = -1
@@ -199,24 +187,16 @@ class SceneBoundingBox:
 
 def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_timestep_idx):
     num_timesteps_total = min(TOTAL_TIMESTEPS_LIMIT, len(scene_samples_data))
-    scene_samples_data = scene_samples_data[:num_timesteps_total]
 
     agent_to_timestep_to_data = defaultdict(lambda: [AgentRecord()] * num_timesteps_total)
-
-    for timestep, agents_data in enumerate(scene_samples_data):
-        for agent_id, agent_record in agents_data.items():
+    for timestep in range(num_timesteps_total):
+        for agent_id, agent_record in scene_samples_data[timestep].items():
             agent_to_timestep_to_data[agent_id][timestep] = agent_record
 
     num_agents = len(agent_to_timestep_to_data)
 
     num_timesteps_history = current_timestep_idx
     num_timesteps_future = num_timesteps_total - num_timesteps_history - 1
-
-    core_data_array = np.empty((num_agents, num_timesteps_total, 9))
-    for agent_idx, (agent_id, agent_records) in enumerate(agent_to_timestep_to_data.items()):
-        agent_records_core = [agent_record.get_core_tuple() for agent_record in agent_records]
-        core_data_array[agent_idx] = np.array(agent_records_core)
-
 
     result = {
         'scenario/id': np.array(str(scene_id).encode('utf-8')),
@@ -263,40 +243,45 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
 
         result['state/is_sdc'][agent_idx] = valid_record.is_sdc
         result['state/type'][agent_idx] = valid_record.category_to_type()
-        result['state/tracks_to_predict'][agent_idx] = agent_idx
+        result['state/tracks_to_predict'][agent_idx] = agent_idx if agent_records[current_timestep_idx].valid else 0.0
 
-        result['state/past/x'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 0]
-        result['state/past/y'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 1]
-        result['state/past/bbox_yaw'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 2]
-        result['state/past/speed'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 3]
-        result['state/past/valid'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 4]
-        result['state/past/length'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 5]
-        result['state/past/width'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 6]
-        result['state/past/velocity_x'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 7]
-        result['state/past/velocity_y'][agent_idx] = core_data_array[agent_idx, :current_timestep_idx, 8]
+        agent_records_core = np.array([agent_record.get_core_tuple() for agent_record in agent_records])
 
-        result['state/current/x'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 0]
-        result['state/current/y'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 1]
-        result['state/current/bbox_yaw'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 2]
-        result['state/current/speed'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 3]
-        result['state/current/valid'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 4]
-        result['state/current/length'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 5]
-        result['state/current/width'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 6]
-        result['state/current/velocity_x'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 7]
-        result['state/current/velocity_y'][agent_idx] = core_data_array[agent_idx, current_timestep_idx, 8]
+        result['state/past/x'][agent_idx] = agent_records_core[:current_timestep_idx, 0]
+        result['state/past/y'][agent_idx] = agent_records_core[:current_timestep_idx, 1]
+        result['state/past/bbox_yaw'][agent_idx] = agent_records_core[:current_timestep_idx, 2]
+        result['state/past/speed'][agent_idx] = agent_records_core[:current_timestep_idx, 3]
+        result['state/past/valid'][agent_idx] = agent_records_core[:current_timestep_idx, 4]
+        result['state/past/length'][agent_idx] = agent_records_core[:current_timestep_idx, 5]
+        result['state/past/width'][agent_idx] = agent_records_core[:current_timestep_idx, 6]
+        result['state/past/velocity_x'][agent_idx] = agent_records_core[:current_timestep_idx, 7]
+        result['state/past/velocity_y'][agent_idx] = agent_records_core[:current_timestep_idx, 8]
 
-        result['state/future/x'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 0]
-        result['state/future/y'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 1]
-        result['state/future/bbox_yaw'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 2]
-        result['state/future/speed'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 3]
-        result['state/future/valid'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 4]
-        result['state/future/length'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 5]
-        result['state/future/width'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 6]
-        result['state/future/velocity_x'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 7]
-        result['state/future/velocity_y'][agent_idx] = core_data_array[agent_idx, current_timestep_idx+1:, 8]
+        result['state/current/x'][agent_idx] = agent_records_core[current_timestep_idx, 0]
+        result['state/current/y'][agent_idx] = agent_records_core[current_timestep_idx, 1]
+        result['state/current/bbox_yaw'][agent_idx] = agent_records_core[current_timestep_idx, 2]
+        result['state/current/speed'][agent_idx] = agent_records_core[current_timestep_idx, 3]
+        result['state/current/valid'][agent_idx] = agent_records_core[current_timestep_idx, 4]
+        result['state/current/length'][agent_idx] = agent_records_core[current_timestep_idx, 5]
+        result['state/current/width'][agent_idx] = agent_records_core[current_timestep_idx, 6]
+        result['state/current/velocity_x'][agent_idx] = agent_records_core[current_timestep_idx, 7]
+        result['state/current/velocity_y'][agent_idx] = agent_records_core[current_timestep_idx, 8]
 
-    x_min, y_min = core_data_array[:, :, :2].min(axis=(0, 1))
-    x_max, y_max = core_data_array[:, :, :2].max(axis=(0, 1))
+        result['state/future/x'][agent_idx] = agent_records_core[current_timestep_idx+1:, 0]
+        result['state/future/y'][agent_idx] = agent_records_core[current_timestep_idx+1:, 1]
+        result['state/future/bbox_yaw'][agent_idx] = agent_records_core[current_timestep_idx+1:, 2]
+        result['state/future/speed'][agent_idx] = agent_records_core[current_timestep_idx+1:, 3]
+        result['state/future/valid'][agent_idx] = agent_records_core[current_timestep_idx+1:, 4]
+        result['state/future/length'][agent_idx] = agent_records_core[current_timestep_idx+1:, 5]
+        result['state/future/width'][agent_idx] = agent_records_core[current_timestep_idx+1:, 6]
+        result['state/future/velocity_x'][agent_idx] = agent_records_core[current_timestep_idx+1:, 7]
+        result['state/future/velocity_y'][agent_idx] = agent_records_core[current_timestep_idx+1:, 8]
+
+    current_valid_mask = result['state/current/valid'] > 0
+    x_min = result['state/current/x'].min(initial=0, where=current_valid_mask)
+    y_min = result['state/current/y'].min(initial=0, where=current_valid_mask)
+    x_max = result['state/current/x'].max(initial=0, where=current_valid_mask)
+    y_max = result['state/current/y'].max(initial=0, where=current_valid_mask)
 
     scene_bounding_box = SceneBoundingBox(
         x_min=x_min,
