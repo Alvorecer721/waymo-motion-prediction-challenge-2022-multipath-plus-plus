@@ -99,3 +99,7 @@ def main():
                 if 'PEDESTRIAN' in name:
                     f.write('{}/{}: {}\n'.format(metric, name, test_metric_values[i][j]))
     ##################################################
+
+if __name__ == '__main__':
+    print(ROOT_PATH)
+    main()
