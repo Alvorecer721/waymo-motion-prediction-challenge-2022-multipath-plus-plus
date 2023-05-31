@@ -62,7 +62,7 @@ def plot_scene_pred(scene_data, coordinates):
     plot_roadlines(scene_data["road_network_segments"])
 
 
-def pred_one_scene(model, scene_data, coeff):
+def pred_one_scene(config, model, scene_data, coeff):
     with torch.no_grad():
         # Normalise the test data if the configuration requires it
         if config["train"]["normalize"]:
@@ -106,7 +106,7 @@ def main():
 
     model = load_inference_model(config, args.checkpoint)
 
-    pred = pred_one_scene(model, scene_data, coeff)
+    pred = pred_one_scene(config, model, scene_data, coeff)
 
     # plotting all trajectories on the same plot
     plot_scene_pred(scene_data, pred)
