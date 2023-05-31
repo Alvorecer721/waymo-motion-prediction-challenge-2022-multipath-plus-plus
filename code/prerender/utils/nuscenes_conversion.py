@@ -245,10 +245,13 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
     for agent_idx, (agent_id, agent_records) in enumerate(agent_to_timestep_to_data.items()):
         result['state/id'][agent_idx] = agent_idx
 
-        valid_record = next((record for record in agent_records if record.valid))
+        result['state/is_sdc'][agent_idx] = any(record.is_sdc for record in agent_records)
 
-        result['state/is_sdc'][agent_idx] = valid_record.is_sdc
-        result['state/type'][agent_idx] = valid_record.category_to_type()
+        agent_type = {record.category_to_type()
+                      for record in agent_records if record.category_to_type() != WaymoAgentType.UNSET}
+        assert len(agent_type) <= 1
+        result['state/type'][agent_idx] = WaymoAgentType.UNSET if len(agent_type) == 0 else agent_type.pop()
+
         result['state/tracks_to_predict'][agent_idx] = agent_idx if agent_records[current_timestep_idx].valid else 0.0
 
         agent_records_core = np.array([agent_record.get_core_tuple() for agent_record in agent_records])
