@@ -16,6 +16,20 @@ Stepan Konev
 - [[Facebook]](https://www.facebook.com/stepan.konev.31)
 
 ## Code Usage:
+
+For online Python notebook environments the following packages are needed to be installed. Among which the ```nuscenes-devkit``` python library will provide tools to work with the NuScenes dataset. 
+
+```
+!pip install nuscenes-devkit matplotlib==3.7
+import torch
+!pip uninstall torch-scatter torch-sparse torch-geometric torch-cluster  --y
+!pip install torch-scatter -f https://data.pyg.org/whl/torch-{torch.__version__}.html
+!pip install torch-sparse -f https://data.pyg.org/whl/torch-{torch.__version__}.html
+!pip install torch-cluster -f https://data.pyg.org/whl/torch-{torch.__version__}.html
+!pip install git+https://github.com/pyg-team/pytorch_geometric.git
+
+```
+
 First we need to prepare data for training. The prerender script will convert the original data format into set of ```.npz``` files each containing the data for a single target agent. From ```code``` folder run
 ```
 python3 prerender/prerender.py \
