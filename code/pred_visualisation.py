@@ -87,6 +87,7 @@ def main():
     parser.add_argument('--norm-coeffs', type=str, help='Path to the normalization coefficient (.npy) file')
     parser.add_argument('--checkpoint', type=str, default=None, help='Path to the saved checkpoint')
     parser.add_argument('--config', type=str, help='Path to the config file')
+    parser.add_argument('--agent-idx', type=int, help='Agent to visualise in the data folder')
     args = parser.parse_args()
 
     # Load normalisation coefficients and move them to GPU
@@ -103,7 +104,14 @@ def main():
     # Create dataloader for loading scene
     dataloader = get_dataloader(config["val"]["data_config"])
     dataloader_iter = iter(dataloader)
-    scene_data = next(dataloader_iter)  # load one scene
+
+    def _get_nth_agent_data(data_iter, n):
+        agent_data = None
+        for i in range(n):
+            agent_data = next(data_iter)
+        return agent_data
+
+    scene_data = _get_nth_agent_data(dataloader_iter, args.agent_idx)  # load one scene of one agent
 
     model = load_inference_model(config, args.checkpoint)
 
