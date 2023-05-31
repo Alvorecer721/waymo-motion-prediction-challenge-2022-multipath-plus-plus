@@ -104,7 +104,7 @@ class TargetAgentFilteringPolicy:
 class MultiPathPPRenderer(Renderer):
     def __init__(self, config):
         self._config = config
-        self.n_segment_types = 20
+        self.n_segment_types = self._config["n_segment_types"]
         self._segment_filter = SegmentFilteringPolicy(self._config["segment_filtering"])
         self._target_agent_filter = TargetAgentFilteringPolicy(self._config["agent_filtering"])
 

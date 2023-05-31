@@ -60,9 +60,10 @@ def plot_scene_pred(scene_data, coordinates):
                           scene_data["target/history/width"][0][-1], "purple")
 
     plot_roadlines(scene_data["road_network_segments"])
+    plt.savefig('trajectories.png')
 
 
-def pred_one_scene(model, scene_data, coeff):
+def pred_one_scene(config, model, scene_data, coeff):
     with torch.no_grad():
         # Normalise the test data if the configuration requires it
         if config["train"]["normalize"]:
@@ -81,10 +82,12 @@ def pred_one_scene(model, scene_data, coeff):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Inference MultiPath++ Single')
+    parser = argparse.ArgumentParser(description='Pred visualisation MultiPath++ Single')
     parser.add_argument('--data-folder', type=str, help='Path to the data folder')
     parser.add_argument('--norm-coeffs', type=str, help='Path to the normalization coefficient (.npy) file')
     parser.add_argument('--checkpoint', type=str, default=None, help='Path to the saved checkpoint')
+    parser.add_argument('--config', type=str, help='Path to the config file')
+    parser.add_argument('--agent-idx', type=int, help='Agent to visualise in the data folder')
     args = parser.parse_args()
 
     # Load normalisation coefficients and move them to GPU
@@ -92,20 +95,32 @@ def main():
     to_cuda(coeff)  # to GPU
 
     # Load the configuration file
-    config = get_config(f"{ROOT_PATH}/code/configs/final_RoP_Cov_Single.yaml")
+    config = get_config(args.config)
 
     # Set the inference data path in the configuration
-    config["val"]["data_config"]["dataset_config"]["data_path"] = "/content/drive/MyDrive/EPFL/DLAV/temp/val_new"
+    config["val"]["data_config"]["dataset_config"]["data_path"] = args.data_folder
     config["val"]["data_config"]["dataloader_config"]["batch_size"] = 1  # plot can only take 1 scene
 
     # Create dataloader for loading scene
     dataloader = get_dataloader(config["val"]["data_config"])
     dataloader_iter = iter(dataloader)
-    scene_data = next(dataloader_iter)  # load one scene
+
+    def _get_nth_agent_data(data_iter, n):
+        agent_data = None
+        for i in range(n):
+            agent_data = next(data_iter)
+        return agent_data
+
+    scene_data = _get_nth_agent_data(dataloader_iter, args.agent_idx)  # load one scene of one agent
 
     model = load_inference_model(config, args.checkpoint)
 
-    pred = pred_one_scene(model, scene_data, coeff)
+    pred = pred_one_scene(config, model, scene_data, coeff)
 
     # plotting all trajectories on the same plot
     plot_scene_pred(scene_data, pred)
+
+
+if __name__ == '__main__':
+    print(ROOT_PATH)
+    main()

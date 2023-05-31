@@ -72,8 +72,14 @@ def get_agents_data(nuscenes, annotation_tokens):
         rotation_quaternion = Quaternion(sample_annotation['rotation'])
         width, length = sample_annotation['size'][:2]
         velocity_vector = nuscenes.box_velocity(sample_annotation_token)
-        velocity_x, velocity_y = velocity_vector[:2]
-        speed = linalg.norm(velocity_vector)
+
+        is_valid = not np.isnan(velocity_vector).any()
+        if is_valid:
+            velocity_x, velocity_y = velocity_vector[:2]
+            speed = linalg.norm(velocity_vector)
+        else:
+            velocity_x, velocity_y = -1.0, -1.0
+            speed = -1.0
 
         attributes = {nuscenes.get('attribute', attribute_token)['name'] for attribute_token in
                       sample_annotation['attribute_tokens']}
@@ -89,7 +95,7 @@ def get_agents_data(nuscenes, annotation_tokens):
             is_sdc=False,
             speed=speed,
             category=sample_annotation['category_name'],
-            valid=True,
+            valid=is_valid,
             attributes=attributes,
         )
 
@@ -185,6 +191,22 @@ class SceneBoundingBox:
         return self.x_min, self.y_min, self.x_max, self.y_max
 
 
+def mock_data_continuously(data):
+    """
+    Converts [-1, 2, 2, -1, -1, 5, 5, -1] to [2, 2, 2, 2, 2, 5, 5, 5]
+    """
+    if (data == -1).all():
+        return data
+
+    idx = np.where(data != -1, np.arange(len(data)), 0)
+    np.maximum.accumulate(idx, out=idx)
+    data = data[idx]
+
+    first = np.where(data != -1)[0][0]
+    data[:first] = data[first]
+    return data
+
+
 def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_timestep_idx):
     num_timesteps_total = min(TOTAL_TIMESTEPS_LIMIT, len(scene_samples_data))
 
@@ -239,13 +261,23 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
     for agent_idx, (agent_id, agent_records) in enumerate(agent_to_timestep_to_data.items()):
         result['state/id'][agent_idx] = agent_idx
 
-        valid_record = next((record for record in agent_records if record.valid))
+        result['state/is_sdc'][agent_idx] = any(record.is_sdc for record in agent_records)
 
-        result['state/is_sdc'][agent_idx] = valid_record.is_sdc
-        result['state/type'][agent_idx] = valid_record.category_to_type()
+        agent_type = {record.category_to_type()
+                      for record in agent_records if record.category_to_type() != WaymoAgentType.UNSET}
+        assert len(agent_type) <= 1
+        result['state/type'][agent_idx] = WaymoAgentType.UNSET if len(agent_type) == 0 else agent_type.pop()
+
         result['state/tracks_to_predict'][agent_idx] = agent_idx if agent_records[current_timestep_idx].valid else 0.0
 
         agent_records_core = np.array([agent_record.get_core_tuple() for agent_record in agent_records])
+
+        # mock all the data expect validity
+        # we actually only need to mock x and y because it affects road embeddings retrieval
+        for i in range(9):
+            if i == 4:
+                continue
+            agent_records_core[:, i] = mock_data_continuously(agent_records_core[:, i])
 
         result['state/past/x'][agent_idx] = agent_records_core[:current_timestep_idx, 0]
         result['state/past/y'][agent_idx] = agent_records_core[:current_timestep_idx, 1]
@@ -294,15 +326,15 @@ def scene_data_to_agents_timesteps_dict(scene_id, scene_samples_data, current_ti
 
 
 class RoadgraphLayerType(IntEnum):
-    ROAD_SEGMENT = 0
-    ROAD_BLOCK = 1
-    LANE = 2
-    PED_CROSSING = 3
-    WALKWAY = 4
-    STOP_LINE = 5
-    CARPARK_AREA = 6
-    ROAD_DIVIDER = 7
-    LANE_DIVIDER = 8
+    ROAD_SEGMENT = 1
+    ROAD_BLOCK = 2
+    LANE = 3
+    PED_CROSSING = 4
+    WALKWAY = 5
+    STOP_LINE = 6
+    CARPARK_AREA = 7
+    ROAD_DIVIDER = 8
+    LANE_DIVIDER = 9
 
 
 def roadgraph_layer_string_to_enum(layer):
