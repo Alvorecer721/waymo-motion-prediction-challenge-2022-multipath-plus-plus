@@ -6,3 +6,4 @@
     agent_filtering:
       policy: "interesting"
     drop_segments: 4
+    n_segment_types: 20
