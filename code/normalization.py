@@ -65,7 +65,7 @@ def calculate_normalization_coefficients(
         ('target/history/agent_features_diff', agent_diff_feature_count),
         ('other/history/agent_features_diff', agent_diff_feature_count),
         ('road_network_embeddings', road_network_feature_count),
-        ('target/future/xy', 2)
+        ('target/history/xy', 2)
     ]
 
     means = {key: np.zeros(dimension) for key, dimension in key_dimension_pairs}
@@ -85,7 +85,7 @@ def calculate_normalization_coefficients(
                 'target/history/agent_features_diff': get_valid_values(value, 'target/history/lstm_data_diff', agent_diff_feature_count, 'target/history/valid_diff', respect_validity),
                 'other/history/agent_features_diff': get_valid_values(value, 'other/history/lstm_data_diff', agent_diff_feature_count, 'other/history/valid_diff', respect_validity),
                 'road_network_embeddings': value['road_network_embeddings'][:, :, :road_network_feature_count].squeeze(),
-                'target/future/xy': get_valid_values(value, 'target/future/xy', 2, 'target/future/valid', respect_validity)
+                'target/history/xy': get_valid_values(value, 'target/history/xy', 2, 'target/history/valid', respect_validity)
             }
 
             # Update counts, means, and squared_means for each key

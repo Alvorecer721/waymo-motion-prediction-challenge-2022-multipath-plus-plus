@@ -15,5 +15,5 @@ feature_dimension_map:
   other/history/lstm_data_diff: 11
   other/history/mcg_input_data: 24
   road_network_embeddings: 16 # n_segment_types + road_network_feature_count = 9 + 7
-  target/future/xy: 2
+  target/history/xy: 2
 respect_validity: True
